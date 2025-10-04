@@ -1,0 +1,664 @@
+{
+  "info": {
+    "name": "03 - Role Management (CRUD)",
+    "description": "Complete CRUD operations for Keycloak role management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Realm Roles",
+      "item": [
+        {
+          "name": "List All Realm Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "    pm.test('Roles array exists', function () {",
+                  "        pm.expect(jsonData).to.be.an('array');",
+                  "    });",
+                  "    if (jsonData.length > 0) {",
+                  "        pm.environment.set('test_role_name', jsonData[0].name);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/roles",
+              "host": ["{{admin_api_base}}"],
+              "path": ["roles"]
+            },
+            "description": "Get all realm-level roles."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Role by Name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "    pm.test('Role name matches', function () {",
+                  "        pm.expect(jsonData.name).to.exist;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/roles/{{test_role_name}}",
+              "host": ["{{admin_api_base}}"],
+              "path": ["roles", "{{test_role_name}}"]
+            },
+            "description": "Get a specific realm role by name."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Realm Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.environment.set('test_role_name', 'test-role');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"test-role\",\n  \"description\": \"Test role for API testing\",\n  \"composite\": false,\n  \"clientRole\": false,\n  \"attributes\": {\n    \"department\": [\"Engineering\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/roles",
+              "host": ["{{admin_api_base}}"],
+              "path": ["roles"]
+            },
+            "description": "Create a new realm-level role."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Realm Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"test-role\",\n  \"description\": \"Updated test role description\",\n  \"attributes\": {\n    \"department\": [\"IT\"],\n    \"level\": [\"senior\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/roles/{{test_role_name}}",
+              "host": ["{{admin_api_base}}"],
+              "path": ["roles", "{{test_role_name}}"]
+            },
+            "description": "Update an existing realm role."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Realm Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/roles/{{test_role_name}}",
+              "host": ["{{admin_api_base}}"],
+              "path": ["roles", "{{test_role_name}}"]
+            },
+            "description": "Delete a realm role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Role Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "    pm.test('Users array exists', function () {",
+                  "        pm.expect(jsonData).to.be.an('array');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/roles/{{test_role_name}}/users",
+              "host": ["{{admin_api_base}}"],
+              "path": ["roles", "{{test_role_name}}", "users"]
+            },
+            "description": "Get all users assigned to a specific role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Role Composites",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/roles/{{test_role_name}}/composites",
+              "host": ["{{admin_api_base}}"],
+              "path": ["roles", "{{test_role_name}}", "composites"]
+            },
+            "description": "Get composite roles for a role."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Role Mappings",
+      "item": [
+        {
+          "name": "Assign Realm Role to User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"id\": \"role-id-here\",\n    \"name\": \"developer\"\n  }\n]"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/users/{{test_user_id}}/role-mappings/realm",
+              "host": ["{{admin_api_base}}"],
+              "path": ["users", "{{test_user_id}}", "role-mappings", "realm"]
+            },
+            "description": "Assign realm roles to a user. Get role ID from List All Realm Roles."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Realm Role from User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"id\": \"role-id-here\",\n    \"name\": \"developer\"\n  }\n]"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/users/{{test_user_id}}/role-mappings/realm",
+              "host": ["{{admin_api_base}}"],
+              "path": ["users", "{{test_user_id}}", "role-mappings", "realm"]
+            },
+            "description": "Remove realm roles from a user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Available Realm Roles for User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/users/{{test_user_id}}/role-mappings/realm/available",
+              "host": ["{{admin_api_base}}"],
+              "path": ["users", "{{test_user_id}}", "role-mappings", "realm", "available"]
+            },
+            "description": "Get realm roles that can be assigned to the user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Effective Realm Roles for User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/users/{{test_user_id}}/role-mappings/realm/composite",
+              "host": ["{{admin_api_base}}"],
+              "path": ["users", "{{test_user_id}}", "role-mappings", "realm", "composite"]
+            },
+            "description": "Get effective realm roles for user (including composite roles)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Group Role Mappings",
+      "item": [
+        {
+          "name": "Assign Realm Role to Group",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"id\": \"role-id-here\",\n    \"name\": \"developer\"\n  }\n]"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/groups/{{test_group_id}}/role-mappings/realm",
+              "host": ["{{admin_api_base}}"],
+              "path": ["groups", "{{test_group_id}}", "role-mappings", "realm"]
+            },
+            "description": "Assign realm roles to a group."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Group Realm Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/groups/{{test_group_id}}/role-mappings/realm",
+              "host": ["{{admin_api_base}}"],
+              "path": ["groups", "{{test_group_id}}", "role-mappings", "realm"]
+            },
+            "description": "Get realm roles assigned to a group."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Realm Role from Group",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"id\": \"role-id-here\",\n    \"name\": \"developer\"\n  }\n]"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/groups/{{test_group_id}}/role-mappings/realm",
+              "host": ["{{admin_api_base}}"],
+              "path": ["groups", "{{test_group_id}}", "role-mappings", "realm"]
+            },
+            "description": "Remove realm roles from a group."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Client Roles",
+      "item": [
+        {
+          "name": "List Client Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/clients/{{test_client_id}}/roles",
+              "host": ["{{admin_api_base}}"],
+              "path": ["clients", "{{test_client_id}}", "roles"]
+            },
+            "description": "Get all roles for a specific client."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Client Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"client-admin\",\n  \"description\": \"Client administrator role\",\n  \"clientRole\": true\n}"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/clients/{{test_client_id}}/roles",
+              "host": ["{{admin_api_base}}"],
+              "path": ["clients", "{{test_client_id}}", "roles"]
+            },
+            "description": "Create a new client-specific role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Client Role by Name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.test('Status code is 200', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/clients/{{test_client_id}}/roles/client-admin",
+              "host": ["{{admin_api_base}}"],
+              "path": ["clients", "{{test_client_id}}", "roles", "client-admin"]
+            },
+            "description": "Get a specific client role by name."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Client Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"client-admin\",\n  \"description\": \"Updated client administrator role\"\n}"
+            },
+            "url": {
+              "raw": "{{admin_api_base}}/clients/{{test_client_id}}/roles/client-admin",
+              "host": ["{{admin_api_base}}"],
+              "path": ["clients", "{{test_client_id}}", "roles", "client-admin"]
+            },
+            "description": "Update a client role."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Client Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{admin_api_base}}/clients/{{test_client_id}}/roles/client-admin",
+              "host": ["{{admin_api_base}}"],
+              "path": ["clients", "{{test_client_id}}", "roles", "client-admin"]
+            },
+            "description": "Delete a client role."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

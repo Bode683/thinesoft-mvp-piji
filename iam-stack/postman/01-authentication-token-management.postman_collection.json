@@ -1,0 +1,583 @@
+{
+  "info": {
+    "name": "01 - Authentication & Token Management",
+    "description": "Keycloak authentication flows and token management operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Pre-request script for all requests in this collection"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Test script for all requests in this collection"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin Token - Get Access Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('access_token', jsonData.access_token);",
+              "    pm.environment.set('refresh_token', jsonData.refresh_token);",
+              "    console.log('Access token saved to environment');",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Access token received', function () {",
+              "        pm.expect(jsonData.access_token).to.exist;",
+              "    });",
+              "} else {",
+              "    pm.test('Failed to get token', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "password",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{admin_client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "username",
+              "value": "{{admin_username}}",
+              "type": "text"
+            },
+            {
+              "key": "password",
+              "value": "{{admin_password}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/realms/{{master_realm}}/protocol/openid-connect/token",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{master_realm}}", "protocol", "openid-connect", "token"]
+        },
+        "description": "Obtain admin access token using password grant type. This token is required for all Admin API operations."
+      },
+      "response": []
+    },
+    {
+      "name": "User Authentication - Password Grant",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Access token received', function () {",
+              "        pm.expect(jsonData.access_token).to.exist;",
+              "    });",
+              "    pm.test('Refresh token received', function () {",
+              "        pm.expect(jsonData.refresh_token).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "password",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "username",
+              "value": "{{test_user_username}}",
+              "type": "text"
+            },
+            {
+              "key": "password",
+              "value": "{{test_user_password}}",
+              "type": "text"
+            },
+            {
+              "key": "scope",
+              "value": "openid profile email",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/realms/{{realm}}/protocol/openid-connect/token",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+        },
+        "description": "Authenticate a user using Resource Owner Password Credentials (ROPC) grant type."
+      },
+      "response": []
+    },
+    {
+      "name": "Client Credentials Flow",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Access token received', function () {",
+              "        pm.expect(jsonData.access_token).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "service-account",
+              "type": "text"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{client_secret}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/realms/{{realm}}/protocol/openid-connect/token",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+        },
+        "description": "Obtain access token using client credentials for service-to-service authentication."
+      },
+      "response": []
+    },
+    {
+      "name": "Refresh Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('access_token', jsonData.access_token);",
+              "    pm.environment.set('refresh_token', jsonData.refresh_token);",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('New access token received', function () {",
+              "        pm.expect(jsonData.access_token).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "refresh_token",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{admin_client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "refresh_token",
+              "value": "{{refresh_token}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/realms/{{master_realm}}/protocol/openid-connect/token",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{master_realm}}", "protocol", "openid-connect", "token"]
+        },
+        "description": "Refresh an expired access token using the refresh token."
+      },
+      "response": []
+    },
+    {
+      "name": "Token Introspection",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Token is active', function () {",
+              "        pm.expect(jsonData.active).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{admin_client_id}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/realms/{{master_realm}}/protocol/openid-connect/token/introspect",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{master_realm}}", "protocol", "openid-connect", "token", "introspect"]
+        },
+        "description": "Introspect a token to check its validity and get token metadata."
+      },
+      "response": []
+    },
+    {
+      "name": "Token Revocation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204 or 200', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "token",
+              "value": "{{refresh_token}}",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{admin_client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "token_type_hint",
+              "value": "refresh_token",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/realms/{{master_realm}}/protocol/openid-connect/revoke",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{master_realm}}", "protocol", "openid-connect", "revoke"]
+        },
+        "description": "Revoke a refresh token to invalidate it."
+      },
+      "response": []
+    },
+    {
+      "name": "User Info Endpoint",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('User info received', function () {",
+              "        pm.expect(jsonData.sub).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/realms/{{realm}}/protocol/openid-connect/userinfo",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{realm}}", "protocol", "openid-connect", "userinfo"]
+        },
+        "description": "Get user information from the UserInfo endpoint using an access token."
+      },
+      "response": []
+    },
+    {
+      "name": "Logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204 or 200', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+              "});",
+              "pm.environment.set('access_token', '');",
+              "pm.environment.set('refresh_token', '');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "client_id",
+              "value": "{{admin_client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "refresh_token",
+              "value": "{{refresh_token}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/realms/{{master_realm}}/protocol/openid-connect/logout",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{master_realm}}", "protocol", "openid-connect", "logout"]
+        },
+        "description": "Logout user and invalidate the session."
+      },
+      "response": []
+    },
+    {
+      "name": "OpenID Configuration",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Issuer exists', function () {",
+              "        pm.expect(jsonData.issuer).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/realms/{{realm}}/.well-known/openid-configuration",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{realm}}", ".well-known", "openid-configuration"]
+        },
+        "description": "Get OpenID Connect discovery document with all endpoints and capabilities."
+      },
+      "response": []
+    },
+    {
+      "name": "JWKS - JSON Web Key Set",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Keys exist', function () {",
+              "        pm.expect(jsonData.keys).to.be.an('array');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/realms/{{realm}}/protocol/openid-connect/certs",
+          "host": ["{{base_url}}"],
+          "path": ["realms", "{{realm}}", "protocol", "openid-connect", "certs"]
+        },
+        "description": "Get the JSON Web Key Set (JWKS) for token signature verification."
+      },
+      "response": []
+    }
+  ]
+}

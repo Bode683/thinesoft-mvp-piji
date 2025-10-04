@@ -1,5 +1,6 @@
 # Add these entries to /etc/hosts for the Docker stacks
 127.0.0.1 pgadmin.theddt.local
+127.0.0.1 api.theddt.local
 127.0.0.1 pgaudit.theddt.local
 127.0.0.1 grafanastack.theddt.local
 

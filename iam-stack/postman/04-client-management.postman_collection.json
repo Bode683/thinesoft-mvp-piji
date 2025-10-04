@@ -1,0 +1,525 @@
+{
+  "info": {
+    "name": "04 - Client Management (CRUD)",
+    "description": "Complete CRUD operations for Keycloak client management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "List All Clients",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Clients array exists', function () {",
+              "        pm.expect(jsonData).to.be.an('array');",
+              "    });",
+              "    if (jsonData.length > 0) {",
+              "        pm.environment.set('test_client_id', jsonData[0].id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients"]
+        },
+        "description": "Get all clients in the realm."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Client by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Client ID exists', function () {",
+              "        pm.expect(jsonData.id).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}"]
+        },
+        "description": "Get detailed information about a specific client."
+      },
+      "response": []
+    },
+    {
+      "name": "Search Clients by ClientId",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients?clientId=web-app",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients"],
+          "query": [
+            {
+              "key": "clientId",
+              "value": "web-app"
+            }
+          ]
+        },
+        "description": "Search for clients by clientId."
+      },
+      "response": []
+    },
+    {
+      "name": "Create Client - Confidential",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    pm.test('Status code is 201', function () {",
+              "        pm.response.to.have.status(201);",
+              "    });",
+              "    var location = pm.response.headers.get('Location');",
+              "    if (location) {",
+              "        var clientId = location.split('/').pop();",
+              "        pm.environment.set('test_client_id', clientId);",
+              "        console.log('Created client ID: ' + clientId);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"test-confidential-client\",\n  \"name\": \"Test Confidential Client\",\n  \"description\": \"Test client for API operations\",\n  \"enabled\": true,\n  \"publicClient\": false,\n  \"protocol\": \"openid-connect\",\n  \"standardFlowEnabled\": true,\n  \"implicitFlowEnabled\": false,\n  \"directAccessGrantsEnabled\": true,\n  \"serviceAccountsEnabled\": true,\n  \"authorizationServicesEnabled\": false,\n  \"redirectUris\": [\n    \"http://localhost:3000/*\"\n  ],\n  \"webOrigins\": [\n    \"http://localhost:3000\"\n  ],\n  \"attributes\": {\n    \"access.token.lifespan\": \"300\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{admin_api_base}}/clients",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients"]
+        },
+        "description": "Create a new confidential client (requires client secret)."
+      },
+      "response": []
+    },
+    {
+      "name": "Create Client - Public",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    pm.test('Status code is 201', function () {",
+              "        pm.response.to.have.status(201);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"test-public-client\",\n  \"name\": \"Test Public Client\",\n  \"description\": \"Test public client (SPA/Mobile)\",\n  \"enabled\": true,\n  \"publicClient\": true,\n  \"protocol\": \"openid-connect\",\n  \"standardFlowEnabled\": true,\n  \"implicitFlowEnabled\": false,\n  \"directAccessGrantsEnabled\": true,\n  \"redirectUris\": [\n    \"http://localhost:3000/*\",\n    \"myapp://callback\"\n  ],\n  \"webOrigins\": [\n    \"http://localhost:3000\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{admin_api_base}}/clients",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients"]
+        },
+        "description": "Create a new public client (no client secret, for SPAs/mobile apps)."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Client",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"test-confidential-client\",\n  \"name\": \"Test Confidential Client - Updated\",\n  \"description\": \"Updated test client\",\n  \"enabled\": true,\n  \"redirectUris\": [\n    \"http://localhost:3000/*\",\n    \"http://localhost:8080/*\"\n  ],\n  \"webOrigins\": [\n    \"http://localhost:3000\",\n    \"http://localhost:8080\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}"]
+        },
+        "description": "Update an existing client's configuration."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Client",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}"]
+        },
+        "description": "Delete a client from the realm."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Client Secret",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Secret exists', function () {",
+              "        pm.expect(jsonData.value).to.exist;",
+              "    });",
+              "    pm.environment.set('client_secret', jsonData.value);",
+              "    console.log('Client secret saved to environment');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/client-secret",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "client-secret"]
+        },
+        "description": "Get the client secret for a confidential client."
+      },
+      "response": []
+    },
+    {
+      "name": "Regenerate Client Secret",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('New secret exists', function () {",
+              "        pm.expect(jsonData.value).to.exist;",
+              "    });",
+              "    pm.environment.set('client_secret', jsonData.value);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/client-secret",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "client-secret"]
+        },
+        "description": "Regenerate the client secret for a confidential client."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Client Service Account User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Service account user exists', function () {",
+              "        pm.expect(jsonData.id).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/service-account-user",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "service-account-user"]
+        },
+        "description": "Get the service account user associated with the client (for service accounts enabled clients)."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Client Scopes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/default-client-scopes",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "default-client-scopes"]
+        },
+        "description": "Get default client scopes for the client."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Optional Client Scopes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/optional-client-scopes",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "optional-client-scopes"]
+        },
+        "description": "Get optional client scopes for the client."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Client Sessions",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Sessions array exists', function () {",
+              "        pm.expect(jsonData).to.be.an('array');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/user-sessions",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "user-sessions"]
+        },
+        "description": "Get all user sessions for the client."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Client Installation Provider",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/installation/providers/keycloak-oidc-keycloak-json",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "installation", "providers", "keycloak-oidc-keycloak-json"]
+        },
+        "description": "Get client installation configuration in various formats (keycloak-oidc-keycloak-json, keycloak-oidc-jboss-subsystem, etc.)."
+      },
+      "response": []
+    },
+    {
+      "name": "Test Client Connection",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 204) {",
+              "    pm.test('Status code is 204', function () {",
+              "        pm.response.to.have.status(204);",
+              "    });",
+              "    pm.test('Client connection successful', function () {",
+              "        pm.expect(pm.response.code).to.equal(204);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/clients/{{test_client_id}}/management/permissions",
+          "host": ["{{admin_api_base}}"],
+          "path": ["clients", "{{test_client_id}}", "management", "permissions"]
+        },
+        "description": "Test client connection and permissions."
+      },
+      "response": []
+    }
+  ]
+}

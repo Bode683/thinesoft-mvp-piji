@@ -1,0 +1,420 @@
+{
+  "info": {
+    "name": "05 - Group Management",
+    "description": "Complete CRUD operations for Keycloak group management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "List All Groups",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Groups array exists', function () {",
+              "        pm.expect(jsonData).to.be.an('array');",
+              "    });",
+              "    if (jsonData.length > 0) {",
+              "        pm.environment.set('test_group_id', jsonData[0].id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/groups",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups"]
+        },
+        "description": "Get all groups in the realm."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Group by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Group ID exists', function () {",
+              "        pm.expect(jsonData.id).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/groups/{{test_group_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups", "{{test_group_id}}"]
+        },
+        "description": "Get detailed information about a specific group."
+      },
+      "response": []
+    },
+    {
+      "name": "Search Groups",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/groups?search=Developers",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups"],
+          "query": [
+            {
+              "key": "search",
+              "value": "Developers"
+            }
+          ]
+        },
+        "description": "Search for groups by name."
+      },
+      "response": []
+    },
+    {
+      "name": "Create Group",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    pm.test('Status code is 201', function () {",
+              "        pm.response.to.have.status(201);",
+              "    });",
+              "    var location = pm.response.headers.get('Location');",
+              "    if (location) {",
+              "        var groupId = location.split('/').pop();",
+              "        pm.environment.set('test_group_id', groupId);",
+              "        console.log('Created group ID: ' + groupId);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Group\",\n  \"path\": \"/Test Group\",\n  \"attributes\": {\n    \"department\": [\"Engineering\"],\n    \"location\": [\"Remote\"]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{admin_api_base}}/groups",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups"]
+        },
+        "description": "Create a new group in the realm."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Group",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Group Updated\",\n  \"attributes\": {\n    \"department\": [\"IT\"],\n    \"location\": [\"Remote\"],\n    \"team\": [\"Platform\"]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{admin_api_base}}/groups/{{test_group_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups", "{{test_group_id}}"]
+        },
+        "description": "Update an existing group's information."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Group",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/groups/{{test_group_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups", "{{test_group_id}}"]
+        },
+        "description": "Delete a group from the realm."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Group Members",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Members array exists', function () {",
+              "        pm.expect(jsonData).to.be.an('array');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/groups/{{test_group_id}}/members",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups", "{{test_group_id}}", "members"]
+        },
+        "description": "Get all members of a group."
+      },
+      "response": []
+    },
+    {
+      "name": "Add User to Group",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/users/{{test_user_id}}/groups/{{test_group_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["users", "{{test_user_id}}", "groups", "{{test_group_id}}"]
+        },
+        "description": "Add a user to a group."
+      },
+      "response": []
+    },
+    {
+      "name": "Remove User from Group",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/users/{{test_user_id}}/groups/{{test_group_id}}",
+          "host": ["{{admin_api_base}}"],
+          "path": ["users", "{{test_user_id}}", "groups", "{{test_group_id}}"]
+        },
+        "description": "Remove a user from a group."
+      },
+      "response": []
+    },
+    {
+      "name": "Create Subgroup",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    pm.test('Status code is 201', function () {",
+              "        pm.response.to.have.status(201);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Subgroup\",\n  \"attributes\": {\n    \"team\": [\"Backend\"]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{admin_api_base}}/groups/{{test_group_id}}/children",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups", "{{test_group_id}}", "children"]
+        },
+        "description": "Create a subgroup under an existing group."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Group Role Mappings",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/groups/{{test_group_id}}/role-mappings",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups", "{{test_group_id}}", "role-mappings"]
+        },
+        "description": "Get all role mappings for a group."
+      },
+      "response": []
+    },
+    {
+      "name": "Count Groups",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Status code is 200', function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    pm.test('Count exists', function () {",
+              "        pm.expect(jsonData.count).to.exist;",
+              "    });",
+              "    console.log('Total groups: ' + jsonData.count);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{admin_api_base}}/groups/count",
+          "host": ["{{admin_api_base}}"],
+          "path": ["groups", "count"]
+        },
+        "description": "Get the total count of groups in the realm."
+      },
+      "response": []
+    }
+  ]
+}
