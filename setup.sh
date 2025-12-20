@@ -1,172 +1,336 @@
 #!/bin/bash
 
+# ITLDS MVP Setup Script
+# Initializes all microservices with centralized orchestration
+
 set -e
 
-echo "🚀 Setting up PostgreSQL + pgAudit and Grafana Stacks"
-echo "======================================================"
+echo "=========================================="
+echo "ITLDS MVP Setup - Multi-Microservice Architecture"
+echo "=========================================="
 
-# Check if .env files exist
-check_env_files() {
-    echo "📋 Checking environment files..."
-    
-    if [ ! -f "db-stack/.env" ]; then
-        echo "❌ db-stack/.env not found. Please copy and configure:"
-        echo "   cp db-stack/.env.template db-stack/.env"
-        echo "   Edit db-stack/.env with your passwords"
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠ $1${NC}"; }
+print_error() { echo -e "${RED}✗ $1${NC}"; }
+
+# Check prerequisites
+check_prerequisites() {
+    echo "Checking prerequisites..."
+
+    if ! docker info > /dev/null 2>&1; then
+        print_error "Docker is not running. Please start Docker."
         exit 1
     fi
-    
-    if [ ! -f "grafana-stack/.env" ]; then
-        echo "❌ grafana-stack/.env not found. Please copy and configure:"
-        echo "   cp grafana-stack/.env.template grafana-stack/.env"
-        echo "   Edit grafana-stack/.env with your passwords"
+    print_success "Docker is running"
+
+    if ! docker compose version > /dev/null 2>&1; then
+        print_error "Docker Compose is not available."
         exit 1
     fi
-    
-    echo "✅ Environment files found"
+    print_success "Docker Compose is available"
 }
 
-# Check if hosts entries are added
-check_hosts() {
-    echo "📋 Checking /etc/hosts entries..."
-    
-    for hostname in "pgadmin.theddt.local" "pgaudit.theddt.local" "grafanastack.theddt.local"; do
-        if ! grep -q "$hostname" /etc/hosts; then
-            echo "❌ /etc/hosts entries missing ($hostname not found). Please run:"
-            echo "   sudo bash -c 'cat hosts-entries.txt >> /etc/hosts'"
-            exit 1
-        fi
-    done
-    
-    echo "✅ Hosts entries found"
+# Create directory structure
+create_directories() {
+    echo "Creating directory structure..."
+
+    # Centralized secrets
+    mkdir -p secrets
+
+    # KoolFlows directories
+    mkdir -p KoolFlows/traefik/dynamic
+    mkdir -p KoolFlows/crowdsec/config
+    mkdir -p KoolFlows/crowdsec/data
+    mkdir -p KoolFlows/bouncer
+
+    # PeSquel directories
+    mkdir -p PeSquel/postgres/init
+    mkdir -p PeSquel/postgres/data
+    mkdir -p PeSquel/pgbouncer
+    mkdir -p PeSquel/pgadmin/data
+
+    # QueWall directories
+    mkdir -p QueWall/keycloak
+
+    print_success "Directories created"
 }
 
-# Start Grafana stack first
-start_grafana_stack() {
-    echo "🔄 Starting Grafana stack..."
-    cd grafana-stack
+# Generate secrets
+generate_secrets() {
+    echo "Generating secrets..."
+
+    # PostgreSQL secrets
+    if [ ! -f secrets/postgres_user.txt ]; then
+        echo "pesequel_user" > secrets/postgres_user.txt
+        print_success "Generated postgres_user.txt"
+    else
+        print_warning "postgres_user.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/postgres_password.txt ]; then
+        openssl rand -base64 32 > secrets/postgres_password.txt
+        print_success "Generated postgres_password.txt"
+    else
+        print_warning "postgres_password.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/postgres_db.txt ]; then
+        echo "pesequel_db" > secrets/postgres_db.txt
+        print_success "Generated postgres_db.txt"
+    else
+        print_warning "postgres_db.txt already exists, skipping"
+    fi
+
+    # pgAdmin secrets
+    if [ ! -f secrets/pgadmin_email.txt ]; then
+        echo "admin@theddt.com" > secrets/pgadmin_email.txt
+        print_success "Generated pgadmin_email.txt"
+    else
+        print_warning "pgadmin_email.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/pgadmin_password.txt ]; then
+        openssl rand -base64 32 > secrets/pgadmin_password.txt
+        print_success "Generated pgadmin_password.txt"
+    else
+        print_warning "pgadmin_password.txt already exists, skipping"
+    fi
+
+    # Authenticator password (FIXED - dynamic generation)
+    if [ ! -f secrets/authenticator_password.txt ]; then
+        openssl rand -base64 32 > secrets/authenticator_password.txt
+        print_success "Generated authenticator_password.txt"
+    else
+        print_warning "authenticator_password.txt already exists, skipping"
+    fi
+
+    # CrowdSec bouncer API key (pre-generated)
+    if [ ! -f secrets/crowdsec_bouncer_key.txt ]; then
+        # Generate a random API key for the bouncer (hex format for compatibility)
+        BOUNCER_KEY=$(openssl rand -hex 32)
+        echo "$BOUNCER_KEY" > secrets/crowdsec_bouncer_key.txt
+        print_success "Generated crowdsec_bouncer_key.txt"
+    else
+        print_warning "crowdsec_bouncer_key.txt already exists, skipping"
+        BOUNCER_KEY=$(cat secrets/crowdsec_bouncer_key.txt)
+    fi
+
+    # QueWall / Keycloak secrets
+    if [ ! -f secrets/keycloak_admin_password.txt ]; then
+        openssl rand -base64 32 > secrets/keycloak_admin_password.txt
+        print_success "Generated keycloak_admin_password.txt"
+    else
+        print_warning "keycloak_admin_password.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/keycloak_db_password.txt ]; then
+        openssl rand -base64 32 > secrets/keycloak_db_password.txt
+        print_success "Generated keycloak_db_password.txt"
+    else
+        print_warning "keycloak_db_password.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/oauth2_client_secret.txt ]; then
+        openssl rand -base64 32 > secrets/oauth2_client_secret.txt
+        print_success "Generated oauth2_client_secret.txt"
+    else
+        print_warning "oauth2_client_secret.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/oauth2_cookie_secret.txt ]; then
+        openssl rand -base64 32 > secrets/oauth2_cookie_secret.txt
+        print_success "Generated oauth2_cookie_secret.txt"
+    else
+        print_warning "oauth2_cookie_secret.txt already exists, skipping"
+    fi
+
+    # Set permissions (644 allows container users to read secrets)
+    chmod 644 secrets/*.txt
+    print_success "Permissions set on secrets"
+}
+
+# Create .env file
+create_env_file() {
+    echo "Creating .env file for environment variables..."
+
+    if [ ! -f .env ]; then
+        # Get the bouncer key from the secrets file
+        BOUNCER_KEY=$(cat secrets/crowdsec_bouncer_key.txt)
+
+        cat > .env << EOF
+# CrowdSec Bouncer API Key
+# Generated by setup.sh on $(date)
+# Do not commit this file to version control!
+CROWDSEC_BOUNCER_KEY=$BOUNCER_KEY
+EOF
+        chmod 600 .env
+        print_success "Created .env file with CROWDSEC_BOUNCER_KEY"
+    else
+        print_warning ".env file already exists, skipping (delete and re-run setup.sh to regenerate)"
+    fi
+}
+
+# Generate Traefik dynamic config from template
+generate_traefik_config() {
+    echo "Generating Traefik dynamic configuration..."
+
+    if [ ! -f secrets/crowdsec_bouncer_key.txt ]; then
+        print_error "Bouncer key not found. Run generate_secrets first."
+        exit 1
+    fi
+
+    BOUNCER_KEY=$(cat secrets/crowdsec_bouncer_key.txt)
+
+    # Generate config.yml from template
+    sed "s/__CROWDSEC_BOUNCER_KEY__/$BOUNCER_KEY/" \
+        KoolFlows/traefik/dynamic/config.yml.template > \
+        KoolFlows/traefik/dynamic/config.yml
+
+    print_success "Generated KoolFlows/traefik/dynamic/config.yml"
+}
+
+# Generate Keycloak realm configuration from template
+generate_keycloak_realm() {
+    echo "Generating Keycloak realm configuration..."
+
+    if [ ! -f secrets/oauth2_client_secret.txt ]; then
+        print_error "OAuth2 client secret not found. Run generate_secrets first."
+        exit 1
+    fi
+
+    OAUTH2_SECRET=$(cat secrets/oauth2_client_secret.txt)
+
+    # Generate realm-export-generated.json from template
+    sed "s/OAUTH2_CLIENT_SECRET_PLACEHOLDER/$OAUTH2_SECRET/" \
+        QueWall/keycloak/realm-export.json > \
+        QueWall/keycloak/realm-export-generated.json
+
+    print_success "Generated QueWall/keycloak/realm-export-generated.json"
+}
+
+# Update hosts file instructions
+show_dns_instructions() {
+    echo ""
+    echo "=========================================="
+    echo "DNS Configuration Required"
+    echo "=========================================="
+    echo "Please add the following entries to your /etc/hosts file:"
+    echo ""
+    echo "127.0.0.1 theddt.local"
+    echo "127.0.0.1 pgadmin.theddt.local"
+    echo "127.0.0.1 traefik.theddt.local"
+    echo "127.0.0.1 keycloak.theddt.local"
+    echo "127.0.0.1 auth.theddt.local"
+    echo ""
+    echo "Linux/Mac: sudo nano /etc/hosts"
+    echo "Windows: C:\\Windows\\System32\\drivers\\etc\\hosts (Run as Administrator)"
+    echo ""
+    print_warning "You need to edit the hosts file manually"
+    echo ""
+    read -p "Press Enter after you've updated the hosts file..."
+}
+
+# Create Docker network
+create_network() {
+    echo "Creating Docker network 'web'..."
+    if docker network inspect web > /dev/null 2>&1; then
+        print_warning "Network 'web' already exists, skipping"
+    else
+        docker network create web
+        print_success "Network 'web' created"
+    fi
+}
+
+# Build and start services
+start_services() {
+    echo "Building custom Docker images..."
+    docker compose build
+    print_success "Images built"
+
+    echo "Starting services..."
     docker compose up -d
-    cd ..
-    
-    echo "⏳ Waiting for Grafana to be accessible..."
-    for i in {1..30}; do
-        if curl -sSf http://grafanastack.theddt.local:3000 > /dev/null 2>&1; then
-            echo "✅ Grafana is accessible"
-            break
-        fi
-        echo "⏳ Waiting for Grafana... ($i/30)"
-        sleep 5
-    done
+    print_success "Services started"
+}
 
-    # Wait for Loki to be ready
-    echo "🔍 Checking Loki health..."
-    for i in {1..30}; do
-        if curl -s http://grafanastack.theddt.local:3100/ready > /dev/null 2>&1; then
-            echo "✅ Loki is ready"
-            break
-        fi
-        echo "⏳ Waiting for Loki... ($i/30)"
-        sleep 5
-    done
+# Wait for health checks
+wait_for_health() {
+    echo "Waiting for services to be healthy..."
+    sleep 10
 
-    # Wait for Prometheus to be healthy
-    echo "🔍 Checking Prometheus health..."
-    for i in {1..30}; do
-        if curl -sSf http://grafanastack.theddt.local:9090/-/healthy > /dev/null 2>&1; then
-            echo "✅ Prometheus is healthy"
-            break
-        fi
-        echo "⏳ Waiting for Prometheus... ($i/30)"
-        sleep 5
-    done
+    # Check each service (removed crowdsec-traefik-bouncer - we migrated to plugin)
+    services=("crowdsec" "traefik" "postgres" "pgbouncer" "pgadmin" "keycloak" "oauth2-proxy")
 
-    # Wait for Alertmanager to be healthy
-    echo "🔍 Checking Alertmanager health..."
-    for i in {1..30}; do
-        if curl -sSf http://grafanastack.theddt.local:9093/-/healthy > /dev/null 2>&1; then
-            echo "✅ Alertmanager is healthy"
-            break
-        fi
-        echo "⏳ Waiting for Alertmanager... ($i/30)"
-        sleep 5
+    for service in "${services[@]}"; do
+        echo "Checking $service..."
+        for i in {1..30}; do
+            # Try koolflows-, pesequel-, or quewall- prefixes
+            health=$(docker inspect --format='{{.State.Health.Status}}' "koolflows-$service" 2>/dev/null || \
+                     docker inspect --format='{{.State.Health.Status}}' "pesequel-$service" 2>/dev/null || \
+                     docker inspect --format='{{.State.Health.Status}}' "quewall-$service" 2>/dev/null || \
+                     echo "unknown")
+            if [ "$health" = "healthy" ]; then
+                print_success "$service is healthy"
+                break
+            fi
+            if [ $i -eq 30 ]; then
+                print_warning "$service is not healthy yet (status: $health)"
+            fi
+            sleep 2
+        done
     done
 }
 
-# Start DB stack
-start_db_stack() {
-    echo "🔄 Starting DB stack..."
-    cd db-stack
-    docker compose up -d
-    cd ..
+# Display final information
+show_summary() {
+    echo ""
+    echo "=========================================="
+    echo "Setup Complete!"
+    echo "=========================================="
+    echo ""
+    echo "Services are now running:"
+    echo "  • Traefik Dashboard: http://traefik.theddt.local (protected by CrowdSec)"
+    echo "  • pgAdmin: http://pgadmin.theddt.local"
+    echo "  • Keycloak Admin: http://keycloak.theddt.local"
+    echo "  • OAuth2 Auth: http://auth.theddt.local"
+    echo "  • PostgreSQL: localhost:5432"
+    echo "  • pgBouncer: localhost:6432"
+    echo ""
+    echo "Credentials:"
+    echo "  • PostgreSQL User: $(cat secrets/postgres_user.txt)"
+    echo "  • PostgreSQL Password: $(cat secrets/postgres_password.txt)"
+    echo "  • pgAdmin Email: $(cat secrets/pgadmin_email.txt)"
+    echo "  • pgAdmin Password: $(cat secrets/pgadmin_password.txt)"
+    echo "  • Keycloak Admin: admin"
+    echo "  • Keycloak Password: $(cat secrets/keycloak_admin_password.txt)"
+    echo ""
+    echo "Useful Commands:"
+    echo "  • View logs: docker compose logs -f [service_name]"
+    echo "  • Check status: docker compose ps"
+    echo "  • CrowdSec decisions: docker exec koolflows-crowdsec cscli decisions list"
+    echo "  • Stop services: ./teardown.sh"
+    echo ""
+    print_success "Happy coding!"
 }
 
-# Verify everything is working
-verify_setup() {
-    echo "🔍 Verifying setup..."
-    
-    # Check Grafana
-    if curl -s http://grafanastack.theddt.local:3000 > /dev/null; then
-        echo "✅ Grafana accessible at http://grafanastack.theddt.local:3000"
-    else
-        echo "❌ Grafana not accessible"
-    fi
-    
-    # Check pgAdmin
-    if curl -s http://pgadmin.theddt.local > /dev/null; then
-        echo "✅ pgAdmin accessible at http://pgadmin.theddt.local"
-    else
-        echo "❌ pgAdmin not accessible"
-    fi
-    
-    # Check pgAudit dashboard
-    if curl -s http://pgaudit.theddt.local > /dev/null; then
-        echo "✅ pgAudit dashboard accessible at http://pgaudit.theddt.local"
-    else
-        echo "❌ pgAudit dashboard not accessible"
-    fi
-    
-    # Check Loki
-    if curl -s http://grafanastack.theddt.local:3100/ready > /dev/null; then
-        echo "✅ Loki ready at http://grafanastack.theddt.local:3100"
-    else
-        echo "❌ Loki not ready"
-    fi
-    
-    # Check Prometheus
-    if curl -s http://grafanastack.theddt.local:9090 > /dev/null; then
-        echo "✅ Prometheus accessible at http://grafanastack.theddt.local:9090"
-    else
-        echo "❌ Prometheus not accessible"
-    fi
-    
-    # Check PgBouncer
-    echo "📊 PgBouncer should be accessible on localhost:6432"
-}
-
+# Main execution
 main() {
-    check_env_files
-    check_hosts
-    start_grafana_stack
-    start_db_stack
-    verify_setup
-    
-    echo ""
-    echo "🎉 Setup complete!"
-    echo "================================"
-    echo "📊 Services accessible at:"
-    echo "   • Grafana: http://grafanastack.theddt.local:3000"
-    echo "   • pgAdmin: http://pgadmin.theddt.local"
-    echo "   • pgAudit Dashboard: http://pgaudit.theddt.local"
-    echo "   • Prometheus: http://grafanastack.theddt.local:9090"
-    echo "   • Alertmanager: http://grafanastack.theddt.local:9093"
-    echo "   • PgBouncer: localhost:6432"
-    echo ""
-    echo "🔍 To run K6 tests:"
-    echo "   cd grafana-stack && docker compose run --rm k6 run /scripts/example-test.js"
-    echo ""
-    echo "📝 Check container logs:"
-    echo "   docker compose logs -f postgres  # In db-stack/"
-    echo "   docker compose logs -f promtail  # In db-stack/"
+    check_prerequisites
+    create_directories
+    generate_secrets
+    create_env_file
+    generate_traefik_config
+    generate_keycloak_realm
+    show_dns_instructions
+    create_network
+    start_services
+    wait_for_health
+    show_summary
 }
 
 main "$@"

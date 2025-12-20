@@ -1,0 +1,59 @@
+rest {
+    # Configuration du endpoint backend
+    endpoint = "${env:BACKEND_URL}/api/v1"
+    
+    # Configuration de la connexion
+    connect {
+        retry_on_error = yes
+        max_retries = 3
+        retry_delay = 2
+    }
+
+    # Configuration des pools de connexions
+    pool {
+        start = 0
+        min = 0
+        max = 20
+        spare = 3
+        uses = 0
+        lifetime = 0
+        idle_timeout = 60
+        retry_delay = 1
+    }
+
+    # Configuration pour l'autorisation - Version simplifiée
+    authorize {
+        uri = "${..endpoint}/auth/radius"
+        method = "post"
+        body = "json"
+        data = '{"username": "%{User-Name}", "password": "%{%{User-Password}:-%{%{CHAP-Password}:-%{%{MS-CHAP-Password}:-}}}", "nas_ip_address": "%{NAS-IP-Address}", "nas_identifier": "%{%{NAS-Identifier}:-unknown}", "service_type": "%{%{Service-Type}:-Framed-User}", "framed_ip_address": "%{%{Framed-IP-Address}:-}", "calling_station_id": "%{%{Calling-Station-Id}:-}", "called_station_id": "%{%{Called-Station-Id}:-}"}'
+        tls {
+            check_cert = no
+            check_cert_cn = no
+        }
+    }
+    
+    # Configuration pour l'accounting
+    accounting {
+        uri = "${..endpoint}/accounting/radius"
+        method = "post"
+        body = "json"
+        data = '{"username": "%{User-Name}", "session_id": "%{Acct-Session-Id}", "status_type": "%{Acct-Status-Type}", "session_time": "%{%{Acct-Session-Time}:-0}", "input_octets": "%{%{Acct-Input-Octets}:-0}", "output_octets": "%{%{Acct-Output-Octets}:-0}", "input_packets": "%{%{Acct-Input-Packets}:-0}", "output_packets": "%{%{Acct-Output-Packets}:-0}", "nas_ip_address": "%{NAS-IP-Address}", "framed_ip_address": "%{%{Framed-IP-Address}:-}", "calling_station_id": "%{%{Calling-Station-Id}:-}", "called_station_id": "%{%{Called-Station-Id}:-}", "terminate_cause": "%{%{Acct-Terminate-Cause}:-}"}'
+        tls {
+            check_cert = no
+            check_cert_cn = no
+        }
+    }
+
+    # Configuration pour post-auth
+    post-auth {
+        uri = "${..endpoint}/accounting/radius"
+        method = "post"
+        body = "json"
+        data = '{"username": "%{User-Name}", "session_id": "%{%{Acct-Session-Id}:-post-auth-%{randstr:xxxxxxxx}}", "status_type": "Post-Auth", "nas_ip_address": "%{NAS-IP-Address}", "framed_ip_address": "%{%{Framed-IP-Address}:-}", "calling_station_id": "%{%{Calling-Station-Id}:-}", "called_station_id": "%{%{Called-Station-Id}:-}", "auth_result": "%{%{Module-Failure-Message}:-success}"}'
+        tls {
+            check_cert = no
+            check_cert_cn = no
+        }
+    }
+}

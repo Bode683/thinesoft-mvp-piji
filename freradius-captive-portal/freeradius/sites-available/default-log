@@ -1,0 +1,119 @@
+# Configuration détaillée pour le site default avec logs améliorés
+# Placer ce fichier dans /etc/freeradius/3.0/sites-available/default
+
+server default {
+    listen {
+        type = auth
+        ipaddr = *
+        port = 1812
+    }
+
+    listen {
+        type = acct
+        ipaddr = *
+        port = 1813
+    }
+
+    authorize {
+        # Activer les logs détaillés pour l'autorisation
+        update request {
+            Tmp-String-0 = "Début de l'autorisation pour %{User-Name}"
+        }
+        
+        filter_username
+        preprocess
+        chap
+        mschap
+        digest
+        suffix
+        eap {
+            ok = return
+        }
+        
+        # Vérification SQL
+        sql
+        
+        # Vérification des utilisateurs locaux
+        files
+        
+        # Enregistrer les détails de l'autorisation
+        update request {
+            Tmp-String-0 = "Fin de l'autorisation pour %{User-Name}"
+        }
+        
+        expiration
+        logintime
+        pap
+    }
+
+    authenticate {
+        # Logs pour l'authentification
+        update request {
+            Tmp-String-0 = "Début de l'authentification pour %{User-Name}"
+        }
+        
+        Auth-Type PAP {
+            pap
+        }
+        
+        Auth-Type CHAP {
+            chap
+        }
+        
+        Auth-Type MS-CHAP {
+            mschap
+        }
+        
+        mschap
+        digest
+        eap
+        
+        # Logs de fin d'authentification
+        update request {
+            Tmp-String-0 = "Fin de l'authentification pour %{User-Name}"
+        }
+    }
+
+    # Configuration pour l'accounting
+    accounting {
+        update request {
+            Tmp-String-0 = "Accounting: %{Acct-Status-Type} pour %{User-Name}"
+        }
+        
+        detail
+        unix
+        sql
+        exec
+        attr_filter.accounting_response
+    }
+
+    # Logs détaillés pour les sessions
+    session {
+        update request {
+            Tmp-String-0 = "Session: %{User-Name}"
+        }
+        
+        radutmp
+        sql
+    }
+
+    post-auth {
+        update request {
+            Tmp-String-0 = "Post-Auth: %{User-Name}"
+        }
+        
+        # Mise à jour de la dernière connexion
+        update reply {
+            Reply-Message := "Bienvenue, %{User-Name}"
+        }
+        
+        # Logs SQL
+        sql
+        
+        # Logs détaillés
+        exec
+        
+        # Filtrage des attributs
+        attr_filter.access_accept
+    }
+}

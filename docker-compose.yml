@@ -1,0 +1,305 @@
+networks:
+  web:
+    external: true
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  crowdsec_data:
+    driver: local
+  traefik_logs:
+    driver: local
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_db:
+    file: ./secrets/postgres_db.txt
+  pgadmin_email:
+    file: ./secrets/pgadmin_email.txt
+  pgadmin_password:
+    file: ./secrets/pgadmin_password.txt
+  authenticator_password:
+    file: ./secrets/authenticator_password.txt
+  crowdsec_bouncer_key:
+    file: ./secrets/crowdsec_bouncer_key.txt
+  keycloak_admin_password:
+    file: ./secrets/keycloak_admin_password.txt
+  keycloak_db_password:
+    file: ./secrets/keycloak_db_password.txt
+  oauth2_client_secret:
+    file: ./secrets/oauth2_client_secret.txt
+  oauth2_cookie_secret:
+    file: ./secrets/oauth2_cookie_secret.txt
+
+services:
+  ###########################################
+  # KoolFlows Microservice - Traefik + CrowdSec
+  ###########################################
+
+  traefik:
+    image: traefik:latest
+    container_name: koolflows-traefik
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "80:80"
+      - "8888:8080"  # Dashboard (mapped to 8888 to avoid conflict with CrowdSec)
+      - "443:443"    # HTTPS (for future use)
+    environment:
+      - CROWDSEC_BOUNCER_KEY=${CROWDSEC_BOUNCER_KEY:-placeholder}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./KoolFlows/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./KoolFlows/traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./KoolFlows/traefik/plugins-local:/plugins-local:ro
+      - traefik_logs:/var/log/traefik
+    depends_on:
+      crowdsec:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.theddt.local`)"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=web"
+      - "traefik.http.routers.traefik-dashboard.middlewares=crowdsec-bouncer@file"
+
+  crowdsec:
+    build:
+      context: ./KoolFlows/crowdsec
+      dockerfile: Dockerfile
+    container_name: koolflows-crowdsec
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:7422:7422"
+    expose:
+      - 8080
+      - 6060
+      - 7422
+    environment:
+      - DISABLE_ONLINE_API=true
+    secrets:
+      - crowdsec_bouncer_key
+    volumes:
+      - crowdsec_data:/var/lib/crowdsec/data
+      - ./KoolFlows/crowdsec/config/acquis.yaml:/etc/crowdsec/acquis.yaml:ro
+      - ./KoolFlows/crowdsec/config/profiles.yaml:/etc/crowdsec/profiles.yaml:ro
+      - traefik_logs:/var/log/traefik:ro
+    healthcheck:
+      test: ["CMD", "cscli", "version"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ###########################################
+  # PeSquel Microservice - Database Services
+  ###########################################
+
+  postgres:
+    build:
+      context: ./PeSquel/postgres
+      dockerfile: Dockerfile
+    container_name: pesequel-postgres
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER_FILE: /run/secrets/postgres_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB_FILE: /run/secrets/postgres_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      PGSSLMODE: disable
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
+      - authenticator_password
+      - keycloak_db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  pgbouncer:
+    build:
+      context: ./PeSquel/pgbouncer
+      dockerfile: Dockerfile
+    container_name: pesequel-pgbouncer
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "6432:6432"
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
+      - authenticator_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -x pgbouncer || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pesequel-pgadmin
+    restart: unless-stopped
+    networks:
+      - web
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@theddt.com
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    secrets:
+      - pgadmin_password
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-O", "-", "http://localhost:80/misc/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pgadmin.rule=Host(`pgadmin.theddt.local`)"
+      - "traefik.http.routers.pgadmin.entrypoints=web"
+      - "traefik.http.routers.pgadmin.middlewares=crowdsec-full@file"
+      - "traefik.http.services.pgadmin.loadbalancer.server.port=80"
+
+  ###########################################
+  # QueWall Microservice - Authentication Services
+  ###########################################
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: quewall-keycloak
+    restart: unless-stopped
+    networks:
+      - web
+    command: start-dev --import-realm
+    environment:
+      # Database configuration
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
+
+      # Admin credentials
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
+
+      # Server configuration
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY: edge
+      KC_METRICS_ENABLED: "false"
+      KC_HEALTH_ENABLED: "true"
+    secrets:
+      - keycloak_admin_password
+      - keycloak_db_password
+    volumes:
+      - ./QueWall/keycloak/realm-export-generated.json:/opt/keycloak/data/import/theddt-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.theddt.local`)"
+      - "traefik.http.routers.keycloak.entrypoints=web"
+      - "traefik.http.routers.keycloak.middlewares=crowdsec-full@file"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    container_name: quewall-oauth2-proxy
+    restart: unless-stopped
+    networks:
+      - web
+    environment:
+      # OIDC Provider Configuration
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak:8080/realms/theddt
+      OAUTH2_PROXY_CLIENT_ID: oauth2-proxy-client
+      OAUTH2_PROXY_CLIENT_SECRET_FILE: /run/secrets/oauth2_client_secret
+      OAUTH2_PROXY_REDIRECT_URL: http://auth.theddt.local/oauth2/callback
+      OAUTH2_PROXY_SCOPE: "openid profile email groups"
+
+      # Cookie Configuration
+      OAUTH2_PROXY_COOKIE_SECRET_FILE: /run/secrets/oauth2_cookie_secret
+      OAUTH2_PROXY_COOKIE_DOMAINS: .theddt.local
+      OAUTH2_PROXY_COOKIE_SECURE: "false"
+      OAUTH2_PROXY_COOKIE_NAME: _oauth2_proxy
+
+      # Server Configuration
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_PASS_USER_HEADERS: "true"
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+
+      # Email and Groups
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "false"
+
+      # Upstream (not used for ForwardAuth, but required)
+      OAUTH2_PROXY_UPSTREAMS: static://202
+    secrets:
+      - oauth2_client_secret
+      - oauth2_cookie_secret
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4180/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oauth2-proxy.rule=Host(`auth.theddt.local`)"
+      - "traefik.http.routers.oauth2-proxy.entrypoints=web"
+      - "traefik.http.routers.oauth2-proxy.middlewares=crowdsec-full@file"
+      - "traefik.http.services.oauth2-proxy.loadbalancer.server.port=4180"

@@ -1,0 +1,58 @@
+# Traefik Configuration
+# Global settings and entry points for the PeSequel microservice stack
+
+# Global Configuration
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+# API and Dashboard
+api:
+  dashboard: true
+  insecure: true
+
+# Ping endpoint for health checks
+ping: {}
+
+# Experimental Features (REQUIRED for plugins)
+experimental:
+  localPlugins:
+    bouncer:
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+
+# Entry Points
+entryPoints:
+  web:
+    address: ":80"
+
+# Providers
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    watch: true
+    exposedByDefault: false
+    network: web
+    httpClientTimeout: 60
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# Logging
+log:
+  level: INFO
+  format: common
+
+# Access Logs (for CrowdSec)
+accessLog:
+  filePath: /var/log/traefik/access.log
+  format: json
+  filters:
+    statusCodes:
+      - "200-299"
+      - "400-599"
+  bufferingSize: 0
+  fields:
+    headers:
+      defaultMode: drop
+      names:
+        User-Agent: keep
