@@ -144,8 +144,13 @@ generate_secrets() {
     fi
 
     if [ ! -f secrets/oauth2_cookie_secret.txt ]; then
-        openssl rand -base64 32 > secrets/oauth2_cookie_secret.txt
-        print_success "Generated oauth2_cookie_secret.txt"
+        # Generate 32 random bytes as binary (not base64) for oauth2-proxy AES cipher
+        python3 << 'PYSCRIPT'
+import secrets
+with open('secrets/oauth2_cookie_secret.txt', 'wb') as f:
+    f.write(secrets.token_bytes(32))
+PYSCRIPT
+        print_success "Generated oauth2_cookie_secret.txt (32 bytes)"
     else
         print_warning "oauth2_cookie_secret.txt already exists, skipping"
     fi
@@ -195,23 +200,71 @@ generate_traefik_config() {
     print_success "Generated KoolFlows/traefik/dynamic/config.yml"
 }
 
-# Generate Keycloak realm configuration from template
-generate_keycloak_realm() {
-    echo "Generating Keycloak realm configuration..."
+# Setup Keycloak realm and OAuth2 client (after services are running)
+setup_keycloak_realm() {
+    echo "Setting up Keycloak realm and OAuth2-proxy client..."
 
-    if [ ! -f secrets/oauth2_client_secret.txt ]; then
-        print_error "OAuth2 client secret not found. Run generate_secrets first."
-        exit 1
-    fi
+    # Wait for Keycloak to be ready
+    for i in {1..30}; do
+        if docker exec pesequel-postgres curl -s http://quewall-keycloak:8080/realms/master > /dev/null 2>&1; then
+            print_success "Keycloak is ready"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            print_error "Keycloak did not become ready in time"
+            return 1
+        fi
+        sleep 2
+    done
 
+    KEYCLOAK_PASSWORD=$(cat secrets/keycloak_admin_password.txt)
     OAUTH2_SECRET=$(cat secrets/oauth2_client_secret.txt)
 
-    # Generate realm-export-generated.json from template
-    sed "s/OAUTH2_CLIENT_SECRET_PLACEHOLDER/$OAUTH2_SECRET/" \
-        QueWall/keycloak/realm-export.json > \
-        QueWall/keycloak/realm-export-generated.json
+    # Get admin token
+    TOKEN=$(docker exec pesequel-postgres bash -c "curl -s -X POST http://quewall-keycloak:8080/realms/master/protocol/openid-connect/token \
+      -H 'Content-Type: application/x-www-form-urlencoded' \
+      -d 'client_id=admin-cli' \
+      -d 'username=admin' \
+      -d 'password=${KEYCLOAK_PASSWORD}' \
+      -d 'grant_type=password'" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
-    print_success "Generated QueWall/keycloak/realm-export-generated.json"
+    if [ -z "$TOKEN" ]; then
+        print_error "Failed to obtain Keycloak admin token"
+        return 1
+    fi
+
+    # Create theddt realm
+    docker exec pesequel-postgres bash -c "curl -s -X POST http://quewall-keycloak:8080/admin/realms \
+      -H 'Authorization: Bearer ${TOKEN}' \
+      -H 'Content-Type: application/json' \
+      -d '{
+        \"realm\": \"theddt\",
+        \"enabled\": true,
+        \"displayName\": \"TheDDT Realm\"
+      }'" > /dev/null 2>&1
+    print_success "Created theddt realm"
+
+    # Create oauth2-proxy client
+    docker exec pesequel-postgres bash -c "curl -s -X POST http://quewall-keycloak:8080/admin/realms/theddt/clients \
+      -H 'Authorization: Bearer ${TOKEN}' \
+      -H 'Content-Type: application/json' \
+      -d '{
+        \"clientId\": \"oauth2-proxy-client\",
+        \"name\": \"OAuth2 Proxy Client\",
+        \"enabled\": true,
+        \"clientAuthenticatorType\": \"client-secret\",
+        \"secret\": \"${OAUTH2_SECRET}\",
+        \"redirectUris\": [
+          \"http://auth.theddt.local/oauth2/callback\",
+          \"http://localhost:4180/oauth2/callback\"
+        ],
+        \"webOrigins\": [\"*\"],
+        \"standardFlowEnabled\": true,
+        \"implicitFlowEnabled\": false,
+        \"directAccessGrantsEnabled\": false,
+        \"publicClient\": false
+      }'" > /dev/null 2>&1
+    print_success "Created oauth2-proxy OIDC client"
 }
 
 # Update hosts file instructions
@@ -325,11 +378,11 @@ main() {
     generate_secrets
     create_env_file
     generate_traefik_config
-    generate_keycloak_realm
     show_dns_instructions
     create_network
     start_services
     wait_for_health
+    setup_keycloak_realm
     show_summary
 }
 

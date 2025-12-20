@@ -18,7 +18,6 @@
   "registrationAllowed": false,
   "registrationEmailAsUsername": false,
   "rememberMe": true,
-  "verifyEmailByDefault": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
