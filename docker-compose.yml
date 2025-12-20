@@ -186,7 +186,7 @@ services:
       traefik:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-O", "-", "http://localhost:80/misc/ping"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/misc/ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -203,22 +203,22 @@ services:
   ###########################################
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0
+    build:
+      context: ./QueWall/keycloak
+      dockerfile: Dockerfile
     container_name: quewall-keycloak
     restart: unless-stopped
     networks:
       - web
-    command: start-dev --import-realm
+    command: start-dev
     environment:
       # Database configuration
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
 
       # Admin credentials
       KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
 
       # Server configuration
       KC_HTTP_ENABLED: "true"
@@ -229,8 +229,6 @@ services:
     secrets:
       - keycloak_admin_password
       - keycloak_db_password
-    volumes:
-      - ./QueWall/keycloak/realm-export-generated.json:/opt/keycloak/data/import/theddt-realm.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -291,12 +289,6 @@ services:
         condition: service_healthy
       traefik:
         condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4180/ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.oauth2-proxy.rule=Host(`auth.theddt.local`)"
