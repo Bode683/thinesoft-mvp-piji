@@ -1,0 +1,89 @@
+rest {
+    # Configuration générale
+    endpoint = "http://backend:8000/api/v1"
+    timeout = 15
+    retry_delay = 3
+    max_retries = 5
+    
+    # Configuration de gestion d'erreurs
+    error_handling {
+        retry_on_error = yes
+        max_retries = 3
+        retry_delay = 2
+    }
+
+    # Configuration des pools de connexions
+    pool {
+        start = 0
+        min = 0
+        max = 20
+        spare = 3
+        uses = 0
+        lifetime = 0
+        idle_timeout = 60
+        retry_delay = 1
+    }
+
+    # Configuration pour l'autorisation
+    authorize {
+        uri = "${..endpoint}/auth/radius"
+        
+        request {
+            method = "POST"
+            format = "json"
+            body = '{"username": "%{User-Name}", "password": "%{User-Password}", "nas_ip_address": "%{NAS-IP-Address}", "nas_identifier": "%{NAS-Identifier}", "service_type": "%{Service-Type}"}'
+        }
+        
+        response {
+            format = "json"
+            # Opérateurs de traitement des attributs
+            # Note: FreeRADIUS parse automatiquement les réponses JSON
+            # et ajoute les attributs selon leur préfixe (reply:, control:)
+        }
+    }
+    
+    # Configuration pour l'authentification
+    authenticate {
+        uri = "${..endpoint}/auth/radius"
+        
+        request {
+            method = "POST"
+            format = "json"
+            body = '{"username": "%{User-Name}", "password": "%{User-Password}", "nas_ip_address": "%{NAS-IP-Address}", "nas_identifier": "%{NAS-Identifier}"}'
+        }
+        
+        response {
+            format = "json"
+        }
+    }
+    
+    # Configuration pour la comptabilité - Endpoint unifié
+    accounting {
+        uri = "${..endpoint}/accounting/radius"
+        
+        request {
+            method = "POST"
+            format = "json"
+            body = '{"username": "%{User-Name}", "session_id": "%{Acct-Session-Id}", "status_type": "%{Acct-Status-Type}", "input_octets": "%{%{Acct-Input-Octets}:-0}", "output_octets": "%{%{Acct-Output-Octets}:-0}", "input_packets": "%{%{Acct-Input-Packets}:-0}", "output_packets": "%{%{Acct-Output-Packets}:-0}", "session_time": "%{%{Acct-Session-Time}:-0}", "nas_ip_address": "%{NAS-IP-Address}", "nas_identifier": "%{NAS-Identifier}", "framed_ip_address": "%{Framed-IP-Address}", "calling_station_id": "%{Calling-Station-Id}", "called_station_id": "%{Called-Station-Id}", "terminate_cause": "%{Acct-Terminate-Cause}"}'
+        }
+        
+        response {
+            format = "json"
+        }
+    }
+    
+    # Configuration pour post-auth - Utilise le même endpoint unifié
+    post-auth {
+        uri = "${..endpoint}/accounting/radius"
+        
+        request {
+            method = "POST"
+            format = "json"
+            body = '{"username": "%{User-Name}", "session_id": "%{Acct-Session-Id}", "status_type": "Post-Auth", "nas_ip_address": "%{NAS-IP-Address}", "framed_ip_address": "%{Framed-IP-Address}", "calling_station_id": "%{Calling-Station-Id}", "called_station_id": "%{Called-Station-Id}"}'
+        }
+        
+        response {
+            format = "json"
+        }
+    }
+}

@@ -1,0 +1,34 @@
+# CrowdSec Decision Profiles
+# Defines how CrowdSec responds to detected threats
+
+# Default IP ban profile
+name: default_ip_remediation
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Ip"
+decisions:
+  - type: ban
+    duration: 4h
+    scope: Ip
+on_success: break
+
+---
+# SSH brute force profile
+name: ssh_bruteforce
+filters:
+  - Alert.Contains("trigger") && contains(Alert.Trigger, "crowdsecurity/ssh-bf")
+decisions:
+  - type: ban
+    duration: 24h
+    scope: Ip
+on_success: break
+
+---
+# HTTP attack profile
+name: http_attacks
+filters:
+  - Alert.Contains("trigger") && contains(Alert.Trigger, "crowdsecurity/http")
+decisions:
+  - type: ban
+    duration: 6h
+    scope: Ip
+on_success: break

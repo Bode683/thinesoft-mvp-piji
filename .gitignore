@@ -304,3 +304,8 @@ iam-stack/config/openldap/certs/
 
 # IAM stack certificates
 iam-stack/certs/
+# ITLDS MVP - Generated files and secrets
+secrets/
+KoolFlows/traefik/dynamic/config.yml
+QueWall/keycloak/realm-export-generated.json
+backups/

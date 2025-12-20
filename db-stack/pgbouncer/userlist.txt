@@ -1,3 +1,0 @@
-# PgBouncer userlist - passwords will be set via environment variables
-# Format: "username" "password_hash"
-# This file will be populated by the container startup script

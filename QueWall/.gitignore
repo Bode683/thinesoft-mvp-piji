@@ -1,0 +1,32 @@
+# Secrets
+secrets/
+*.secret
+*.key
+
+# Generated files
+keycloak/realm-export-generated.json
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# Docker volumes (if using bind mounts)
+volumes/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies (if any)
+node_modules/
+__pycache__/
+*.pyc

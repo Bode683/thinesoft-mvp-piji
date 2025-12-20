@@ -1,0 +1,40 @@
+sql {
+    driver = "rlm_sql_postgresql"
+    dialect = "postgresql"
+
+    server = "127.0.0.1"
+    port = 5432
+    login = "radius"
+    password = "radiuspass"
+    radius_db = "radius"
+
+    sql_user_name = "%{User-Name}"
+
+    # Requêtes pour radcheck et radreply
+    authorize_check_query = "SELECT id, username, attribute, value, op FROM radcheck WHERE username = '%{SQL-User-Name}' ORDER BY id"
+    authorize_reply_query = "SELECT id, username, attribute, value, op FROM radreply WHERE username = '%{SQL-User-Name}' ORDER BY id"
+
+    group_membership_query = "SELECT groupname FROM radusergroup WHERE username = '%{SQL-User-Name}' ORDER BY priority"
+
+    # Accounting
+    accounting_onoff_query = "INSERT INTO radacct (...) VALUES (...)"  # à activer selon le schéma
+    accounting_update_query = "UPDATE radacct SET ... WHERE ..."
+    accounting_start_query = "INSERT INTO radacct (...) VALUES (...)"
+    accounting_stop_query = "UPDATE radacct SET ... WHERE ..."
+
+    # Session & Post-Auth
+    postauth_query = "INSERT INTO radpostauth (username, pass, reply, authdate) VALUES ('%{User-Name}', '%{User-Password}', '%{reply:Packet-Type}', NOW())"
+
+    read_groups = yes
+    read_clients = yes
+
+    logfile = "/var/log/freeradius/sqltrace.sql"
+    log_sql_queries = yes
+
+    pool {
+        start = 2
+        min = 1
+        max = 4
+        spare = 1
+    }
+}
