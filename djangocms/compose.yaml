@@ -1,0 +1,63 @@
+services:
+  django_db:
+    image: postgres:15-alpine
+    env_file:
+      - .env.local
+    networks:
+      - backend
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/
+
+  django:
+    build:
+      context: ./djangocms
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./djangocms:/app:rw"
+      - "./data:/data:rw"
+    networks:
+      - backend
+    env_file:
+      - .env.local
+    depends_on:
+      - django_db
+
+  pgadmin:
+    image: dpage/pgadmin4
+    env_file:
+      - .env.local
+    ports:
+      - "5050:80"
+    networks:
+      - backend
+    depends_on:
+      - django_db
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+  web:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/reactcms:/app/reactcms
+      - /app/reactcms/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # Helps with file watching in Docker
+    networks:
+      - frontend
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+networks:
+  backend:
+  frontend:
+
+volumes:
+  postgres-data:
+  pgadmin-data:

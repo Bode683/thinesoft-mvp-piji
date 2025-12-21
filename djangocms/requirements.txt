@@ -1,0 +1,60 @@
+# Core Django and Django CMS
+django==5.2.3
+django-cms==5.0.1
+django-filer==3.3.1
+
+# Database
+psycopg2-binary
+
+# Storage and Media
+boto3
+dj-database-url
+django-storage-url
+django-storages
+whitenoise
+
+# CMS Functionality
+django-classy-tags==4.1.0
+django-sekizai==4.1.0
+django-formtools==2.5.1
+django-treebeard==4.7.1
+
+djangocms-admin-style==3.3.1
+djangocms-alias==2.0.3
+djangocms-attributes-field==4.0.0
+djangocms-frontend==2.1.2
+djangocms-link==5.0.1
+djangocms-text==0.9.1
+djangocms-versioning==2.3.2
+
+django-entangled==0.6.2
+django-fsm==2.8.2
+django-parler==2.3
+django-polymorphic==4.1.0
+
+easy-thumbnails[svg]==2.10
+
+# Additional Dependencies
+furl==2.1.4
+lxml==5.4.0
+pillow==11.2.1
+reportlab==4.4.1
+
+# Authentication
+django-allauth
+dj_rest_auth
+djangorestframework
+
+# CORS
+django-cors-headers==3.13.0
+
+# Environment
+python-dotenv
+
+# Server
+gunicorn
+
+localstripe
+celery 
+redis
+dj-stripe
