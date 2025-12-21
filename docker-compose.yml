@@ -210,7 +210,7 @@ services:
     restart: unless-stopped
     networks:
       - web
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       # Database configuration
       KC_DB: postgres
@@ -229,6 +229,9 @@ services:
     secrets:
       - keycloak_admin_password
       - keycloak_db_password
+    volumes:
+      - ./QueWall/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - keycloak_data:/opt/keycloak/data 
     depends_on:
       postgres:
         condition: service_healthy
