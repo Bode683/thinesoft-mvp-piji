@@ -26,11 +26,12 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "172.17.0.1",  # default Docker bridge IP for host, from containers
     "host.docker.internal",  # Docker-provided host alias (Linux requires extra flag)
+    "api.theddt.local",  # Traefik routing hostname
 ]
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://api.theddt.local"]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:5173", "http://api.theddt.local"]
 
 # Redirect to HTTPS by default, unless explicitly disabled
 SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT") != "False"

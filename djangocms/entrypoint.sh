@@ -4,13 +4,35 @@ set -e
 
 echo "Starting Django in $DJANGO_ENV mode..."
 
+# Read secrets and export as environment variables
+if [ -f /run/secrets/djangocms_db_password ]; then
+  export SQL_PASSWORD=$(cat /run/secrets/djangocms_db_password)
+  echo "✓ Django DB password loaded from secret"
+else
+  echo "⚠ Warning: djangocms_db_password secret not found"
+fi
+
+if [ -f /run/secrets/django_secret_key ]; then
+  export SECRET_KEY=$(cat /run/secrets/django_secret_key)
+  echo "✓ Django SECRET_KEY loaded from secret"
+else
+  echo "⚠ Warning: django_secret_key secret not found"
+fi
+
+if [ -f /run/secrets/django_superuser_password ]; then
+  export DJANGO_SUPERUSER_PASSWORD=$(cat /run/secrets/django_superuser_password)
+  echo "✓ Django superuser password loaded from secret"
+else
+  echo "⚠ Warning: django_superuser_password secret not found"
+fi
+
 
 if [ "$DATABASE" = "postgres" ]
 then
     echo "Waiting for postgres..."
 
     # Wait for the PostgreSQL server to be available
-    until PGPASSWORD=$DJANGO_DB_PASSWORD psql -h "$DJANGO_DB_HOST" -U "$DJANGO_DB_USER" -d "postgres" -c '\q'; do
+    until PGPASSWORD=$SQL_PASSWORD psql -h "$SQL_HOST" -U "$SQL_USER" -d "postgres" -c '\q'; do
       >&2 echo "Postgres server is unavailable - sleeping"
       sleep 1
     done
@@ -19,8 +41,9 @@ then
 
     # Check if the database exists, and create it if it doesn't.
     # We connect to the default 'postgres' database to run this check.
-    PGPASSWORD=$DJANGO_DB_PASSWORD psql -h "$DJANGO_DB_HOST" -U "$DJANGO_DB_USER" -d "postgres" -tc "SELECT 1 FROM pg_database WHERE datname = '$DJANGO_DB_NAME'" | grep -q 1 || \
-    PGPASSWORD=$DJANGO_DB_PASSWORD psql -h "$DJANGO_DB_HOST" -U "$DJANGO_DB_USER" -d "postgres" -c "CREATE DATABASE \"$DJANGO_DB_NAME\""
+    # NOTE: Database creation is handled by init script, so this is just a fallback
+    PGPASSWORD=$SQL_PASSWORD psql -h "$SQL_HOST" -U "$SQL_USER" -d "postgres" -tc "SELECT 1 FROM pg_database WHERE datname = '$SQL_DATABASE'" | grep -q 1 || \
+    PGPASSWORD=$SQL_PASSWORD psql -h "$SQL_HOST" -U "$SQL_USER" -d "postgres" -c "CREATE DATABASE \"$SQL_DATABASE\""
 
     echo "PostgreSQL started"
 fi
@@ -60,7 +83,7 @@ if [ "$DJANGO_ENV" = "production" ]; then
     python manage.py collectstatic --noinput
 
     echo "Starting Gunicorn..."
-    exec gunicorn djangocms.wsgi:application --bind 0.0.0.0:8000
+    exec gunicorn backend.wsgi:application --bind 0.0.0.0:8000
 
 else
     echo "Starting development server..."

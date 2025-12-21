@@ -11,6 +11,12 @@ volumes:
     driver: local
   traefik_logs:
     driver: local
+  keycloak_data:
+    driver: local
+  djangocms_media:
+    driver: local
+  djangocms_static:
+    driver: local
 
 secrets:
   postgres_password:
@@ -35,6 +41,12 @@ secrets:
     file: ./secrets/oauth2_client_secret.txt
   oauth2_cookie_secret:
     file: ./secrets/oauth2_cookie_secret.txt
+  djangocms_db_password:
+    file: ./secrets/djangocms_db_password.txt
+  django_secret_key:
+    file: ./secrets/django_secret_key.txt
+  django_superuser_password:
+    file: ./secrets/django_superuser_password.txt
 
 services:
   ###########################################
@@ -131,6 +143,7 @@ services:
       - postgres_db
       - authenticator_password
       - keycloak_db_password
+      - djangocms_db_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -298,3 +311,81 @@ services:
       - "traefik.http.routers.oauth2-proxy.entrypoints=web"
       - "traefik.http.routers.oauth2-proxy.middlewares=crowdsec-full@file"
       - "traefik.http.services.oauth2-proxy.loadbalancer.server.port=4180"
+
+  ###########################################
+  # Django CMS Backend Application
+  ###########################################
+
+  djangocms:
+    build:
+      context: ./djangocms
+      dockerfile: Dockerfile
+    container_name: djangocms-app
+    restart: unless-stopped
+    networks:
+      - web
+    environment:
+      # Application Mode
+      DJANGO_ENV: production
+      DATABASE: postgres
+
+      # Database Connection (mapping to settings.py SQL_* variables)
+      SQL_ENGINE: django.db.backends.postgresql
+      SQL_DATABASE: django_db
+      SQL_USER: djangocms
+      SQL_HOST: postgres
+      SQL_PORT: 5432
+      # SQL_PASSWORD loaded from secret in entrypoint
+
+      # Django Configuration
+      # SECRET_KEY loaded from secret in entrypoint
+      DEBUG: "False"
+      DOMAIN: api.theddt.local
+      SECURE_SSL_REDIRECT: "False"
+
+      # Superuser Configuration
+      DJANGO_SUPERUSER_USERNAME: admin
+      DJANGO_SUPERUSER_EMAIL: admin@theddt.com
+      # DJANGO_SUPERUSER_PASSWORD loaded from secret in entrypoint
+
+      # Storage
+      DEFAULT_STORAGE_DSN: file:///data/media/?url=%2Fmedia%2F
+
+      # Payment Gateway (localstripe for testing)
+      USE_LOCALSTRIPE: "True"
+      STRIPE_API_KEY: sk_test_123
+      STRIPE_WEBHOOK_SECRET: whsec_123
+      PAYMENT_HOST: api.theddt.local
+      PAYMENT_USES_SSL: "False"
+
+      # Celery/Redis (optional, can add later)
+      # REDIS_URL: redis://localhost:6379/0
+
+    secrets:
+      - djangocms_db_password
+      - django_secret_key
+      - django_superuser_password
+
+    volumes:
+      - djangocms_media:/data/media
+      - djangocms_static:/app/staticfiles
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8000/admin/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.djangocms.rule=Host(`api.theddt.local`)"
+      - "traefik.http.routers.djangocms.entrypoints=web"
+      - "traefik.http.routers.djangocms.middlewares=crowdsec-full@file"
+      - "traefik.http.services.djangocms.loadbalancer.server.port=8000"

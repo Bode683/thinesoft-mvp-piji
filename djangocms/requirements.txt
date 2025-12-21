@@ -55,6 +55,7 @@ python-dotenv
 gunicorn
 
 localstripe
-celery 
+celery
 redis
 dj-stripe
+django-payments
