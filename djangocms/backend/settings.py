@@ -43,10 +43,6 @@ X_FRAME_OPTIONS = "SAMEORIGIN"
 
 INSTALLED_APPS = [
     "backend",
-    "api.apps.ApiConfig",
-    "payments",
-    "djstripe",
-    "payment_gateway.apps.PaymentsGatewayConfig",
     "rest_framework",
     "rest_framework.authtoken",  # <-- Add this
     "dj_rest_auth",
@@ -286,18 +282,6 @@ ACCOUNT_EMAIL_VERIFICATION = "none"  # Or 'mandatory' or 'optional'
 ACCOUNT_LOGIN_METHODS = {"username", "email"}  # or 'email' or 'username_email'
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 
-# Use custom user model from api app
-AUTH_USER_MODEL = "api.User"
-
-# dj-rest-auth: use custom serializers for user details and registration
-REST_AUTH_SERIALIZERS = {
-    "USER_DETAILS_SERIALIZER": "api.auth_serializers.AuthUserDetailsSerializer",
-}
-
-REST_AUTH_REGISTER_SERIALIZERS = {
-    "REGISTER_SERIALIZER": "api.auth_serializers.CustomRegisterSerializer",
-}
-
 
 # Payment Gateway Configuration
 # --- Local Stripe Configuration ---
@@ -357,15 +341,11 @@ else:
 
 PAYMENT_HOST = os.getenv("PAYMENT_HOST", "localhost:8000")
 PAYMENT_USES_SSL = os.getenv("PAYMENT_USES_SSL", "False").lower() == "true"
-# Tell django-payments which Payment model to use
-PAYMENT_MODEL = "payment_gateway.Payment"
 
 # dj-stripe configuration (local-first; production placeholders)
 STRIPE_LIVE_MODE = False
 DJSTRIPE_WEBHOOK_SECRET = os.environ.get("DJSTRIPE_WEBHOOK_SECRET", "whsec_123")
 DJSTRIPE_USE_NATIVE_JSONFIELD = True
-# Map dj-stripe customer to our user model
-DJSTRIPE_SUBSCRIBER_MODEL = "api.User"
 DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
 
 # Celery Configuration (for async processing)
