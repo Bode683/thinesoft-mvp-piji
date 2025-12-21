@@ -9,6 +9,7 @@ ENV PYTHONUNBUFFERED 1
 # install dependencies
 RUN apt-get update && apt-get install -y \
 postgresql-client \
+wget \
 build-essential \
 gcc \
 libxml2-dev \

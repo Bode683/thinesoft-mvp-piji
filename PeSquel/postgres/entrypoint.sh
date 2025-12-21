@@ -22,6 +22,14 @@ else
   echo "⚠ Warning: keycloak_db_password secret not found"
 fi
 
+# Read Django CMS password from secret and export for init scripts
+if [ -f /run/secrets/djangocms_db_password ]; then
+  export DJANGOCMS_DB_PASSWORD=$(cat /run/secrets/djangocms_db_password)
+  echo "✓ Django CMS DB password loaded from secret"
+else
+  echo "⚠ Warning: djangocms_db_password secret not found"
+fi
+
 # Call original PostgreSQL entrypoint
 echo "Starting PostgreSQL..."
 exec docker-entrypoint.sh "$@"
