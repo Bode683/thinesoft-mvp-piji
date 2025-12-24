@@ -1,4 +1,4 @@
-FROM crowdsecurity/crowdsec:latest
+FROM crowdsecurity/crowdsec:v1.7.4
 
 # Copy custom configurations
 COPY config/acquis.yaml /etc/crowdsec/acquis.yaml

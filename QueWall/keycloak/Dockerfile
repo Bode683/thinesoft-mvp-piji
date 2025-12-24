@@ -1,4 +1,4 @@
-FROM quay.io/keycloak/keycloak:23.0
+FROM quay.io/keycloak/keycloak:26.4.7
 
 # Switch to root to add the wrapper script
 USER root

@@ -47,6 +47,8 @@ secrets:
     file: ./secrets/django_secret_key.txt
   django_superuser_password:
     file: ./secrets/django_superuser_password.txt
+  djangocms_keycloak_client_secret:
+    file: ./secrets/djangocms_keycloak_client_secret.txt
 
 services:
   ###########################################
@@ -54,7 +56,7 @@ services:
   ###########################################
 
   traefik:
-    image: traefik:latest
+    image: traefik:v3.6
     container_name: koolflows-traefik
     restart: unless-stopped
     networks:
@@ -161,6 +163,11 @@ services:
     restart: unless-stopped
     networks:
       - web
+    environment:
+      - PGBOUNCER_DATABASES=keycloak,django_db
+      - PGBOUNCER_HOST=postgres
+      - PGBOUNCER_PORT=5432
+      - PGBOUNCER_AUTH_USER=authenticator
     ports:
       - "6432:6432"
     secrets:
@@ -179,7 +186,7 @@ services:
       start_period: 20s
 
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:9.10
     container_name: pesequel-pgadmin
     restart: unless-stopped
     networks:
@@ -251,11 +258,11 @@ services:
       traefik:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 60s
+      start_period: 90s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.theddt.local`)"
@@ -264,7 +271,9 @@ services:
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
 
   oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    build:
+      context: ./QueWall/oauth2-proxy
+      dockerfile: Dockerfile
     container_name: quewall-oauth2-proxy
     restart: unless-stopped
     networks:
@@ -274,12 +283,12 @@ services:
       OAUTH2_PROXY_PROVIDER: oidc
       OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak:8080/realms/theddt
       OAUTH2_PROXY_CLIENT_ID: oauth2-proxy-client
-      OAUTH2_PROXY_CLIENT_SECRET_FILE: /run/secrets/oauth2_client_secret
       OAUTH2_PROXY_REDIRECT_URL: http://auth.theddt.local/oauth2/callback
-      OAUTH2_PROXY_SCOPE: "openid profile email groups"
+      OAUTH2_PROXY_SCOPE: "openid profile email"
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "false"
+      OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION: "true"
 
       # Cookie Configuration
-      OAUTH2_PROXY_COOKIE_SECRET_FILE: /run/secrets/oauth2_cookie_secret
       OAUTH2_PROXY_COOKIE_DOMAINS: .theddt.local
       OAUTH2_PROXY_COOKIE_SECURE: "false"
       OAUTH2_PROXY_COOKIE_NAME: _oauth2_proxy
@@ -361,10 +370,17 @@ services:
       # Celery/Redis (optional, can add later)
       # REDIS_URL: redis://localhost:6379/0
 
+      # Keycloak Configuration
+      KEYCLOAK_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: theddt
+      KEYCLOAK_CLIENT_ID: djangocms-client
+      # KEYCLOAK_CLIENT_SECRET loaded from secret in entrypoint
+
     secrets:
       - djangocms_db_password
       - django_secret_key
       - django_superuser_password
+      - djangocms_keycloak_client_secret
 
     volumes:
       - djangocms_media:/data/media
@@ -385,7 +401,26 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.djangocms.rule=Host(`api.theddt.local`)"
-      - "traefik.http.routers.djangocms.entrypoints=web"
-      - "traefik.http.routers.djangocms.middlewares=crowdsec-full@file"
+
+      # API Routes (JWT only, no OAuth2-Proxy)
+      - "traefik.http.routers.djangocms-api.rule=Host(`api.theddt.local`) && PathPrefix(`/api/`)"
+      - "traefik.http.routers.djangocms-api.entrypoints=web"
+      - "traefik.http.routers.djangocms-api.middlewares=crowdsec-full@file"
+      - "traefik.http.routers.djangocms-api.service=djangocms"
+
+      # Admin Routes (with OAuth2-Proxy)
+      - "traefik.http.routers.djangocms-admin.rule=Host(`api.theddt.local`) && PathPrefix(`/admin/`)"
+      - "traefik.http.routers.djangocms-admin.entrypoints=web"
+      - "traefik.http.routers.djangocms-admin.middlewares=djangocms-dashboard-auth@file"
+      - "traefik.http.routers.djangocms-admin.service=djangocms"
+      - "traefik.http.routers.djangocms-admin.priority=20"
+
+      # CMS Routes (with OAuth2-Proxy) - catch-all for everything except /api/ and /admin/
+      - "traefik.http.routers.djangocms-cms.rule=Host(`api.theddt.local`)"
+      - "traefik.http.routers.djangocms-cms.entrypoints=web"
+      - "traefik.http.routers.djangocms-cms.middlewares=djangocms-dashboard-auth@file"
+      - "traefik.http.routers.djangocms-cms.service=djangocms"
+      - "traefik.http.routers.djangocms-cms.priority=10"
+
+      # Service definition (shared by all routers)
       - "traefik.http.services.djangocms.loadbalancer.server.port=8000"

@@ -155,6 +155,35 @@ PYSCRIPT
         print_warning "oauth2_cookie_secret.txt already exists, skipping"
     fi
 
+    # Django CMS secrets
+    if [ ! -f secrets/djangocms_db_password.txt ]; then
+        openssl rand -base64 32 > secrets/djangocms_db_password.txt
+        print_success "Generated djangocms_db_password.txt"
+    else
+        print_warning "djangocms_db_password.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/django_secret_key.txt ]; then
+        openssl rand -base64 50 > secrets/django_secret_key.txt
+        print_success "Generated django_secret_key.txt"
+    else
+        print_warning "django_secret_key.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/django_superuser_password.txt ]; then
+        openssl rand -base64 32 > secrets/django_superuser_password.txt
+        print_success "Generated django_superuser_password.txt"
+    else
+        print_warning "django_superuser_password.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/djangocms_keycloak_client_secret.txt ]; then
+        openssl rand -base64 32 > secrets/djangocms_keycloak_client_secret.txt
+        print_success "Generated djangocms_keycloak_client_secret.txt"
+    else
+        print_warning "djangocms_keycloak_client_secret.txt already exists, skipping"
+    fi
+
     # Set permissions (644 allows container users to read secrets)
     chmod 644 secrets/*.txt
     print_success "Permissions set on secrets"
@@ -200,7 +229,7 @@ generate_traefik_config() {
     print_success "Generated KoolFlows/traefik/dynamic/config.yml"
 }
 
-# Setup Keycloak realm and OAuth2 client (after services are running)
+# Setup Keycloak realm and update client secrets (after services are running)
 setup_keycloak_realm() {
     echo "Setting up Keycloak realm and OAuth2-proxy client..."
 
@@ -219,6 +248,7 @@ setup_keycloak_realm() {
 
     KEYCLOAK_PASSWORD=$(cat secrets/keycloak_admin_password.txt)
     OAUTH2_SECRET=$(cat secrets/oauth2_client_secret.txt)
+    DJANGOCMS_SECRET=$(cat secrets/djangocms_keycloak_client_secret.txt)
 
     # Get admin token
     TOKEN=$(docker exec pesequel-postgres bash -c "curl -s -X POST http://quewall-keycloak:8080/realms/master/protocol/openid-connect/token \
@@ -244,27 +274,41 @@ setup_keycloak_realm() {
       }'" > /dev/null 2>&1
     print_success "Created theddt realm"
 
-    # Create oauth2-proxy client
-    docker exec pesequel-postgres bash -c "curl -s -X POST http://quewall-keycloak:8080/admin/realms/theddt/clients \
+    # Update client secrets for both oauth2-proxy-client and djangocms-client
+    # (Both clients are defined in realm-export.json but secrets are masked)
+    update_client_secret "oauth2-proxy-client" "$OAUTH2_SECRET" "$TOKEN"
+    update_client_secret "djangocms-client" "$DJANGOCMS_SECRET" "$TOKEN"
+}
+
+# Update client secret in Keycloak
+update_client_secret() {
+    local CLIENT_ID=$1
+    local SECRET=$2
+    local TOKEN=$3
+
+    # Get client UUID
+    CLIENT_UUID=$(docker exec pesequel-postgres bash -c "curl -s -X GET \
+      http://quewall-keycloak:8080/admin/realms/theddt/clients \
+      -H 'Authorization: Bearer ${TOKEN}' \
+      -H 'Content-Type: application/json'" | \
+      grep -o "\"id\":\"[^\"]*\",\"clientId\":\"${CLIENT_ID}\"" | \
+      grep -o "\"id\":\"[^\"]*\"" | cut -d'"' -f4)
+
+    if [ -z "$CLIENT_UUID" ]; then
+        print_error "Failed to find client ${CLIENT_ID}"
+        return 1
+    fi
+
+    # Update client secret
+    docker exec pesequel-postgres bash -c "curl -s -X PUT \
+      http://quewall-keycloak:8080/admin/realms/theddt/clients/${CLIENT_UUID} \
       -H 'Authorization: Bearer ${TOKEN}' \
       -H 'Content-Type: application/json' \
       -d '{
-        \"clientId\": \"oauth2-proxy-client\",
-        \"name\": \"OAuth2 Proxy Client\",
-        \"enabled\": true,
-        \"clientAuthenticatorType\": \"client-secret\",
-        \"secret\": \"${OAUTH2_SECRET}\",
-        \"redirectUris\": [
-          \"http://auth.theddt.local/oauth2/callback\",
-          \"http://localhost:4180/oauth2/callback\"
-        ],
-        \"webOrigins\": [\"*\"],
-        \"standardFlowEnabled\": true,
-        \"implicitFlowEnabled\": false,
-        \"directAccessGrantsEnabled\": false,
-        \"publicClient\": false
+        \"secret\": \"${SECRET}\"
       }'" > /dev/null 2>&1
-    print_success "Created oauth2-proxy OIDC client"
+
+    print_success "Updated ${CLIENT_ID} secret in Keycloak"
 }
 
 # Update hosts file instructions

@@ -32,6 +32,26 @@ if [ -z "$AUTHENTICATOR_PASSWORD" ]; then
   exit 1
 fi
 
+echo "Generating database configuration..."
+
+# Generate [databases] section dynamically
+DATABASES_SECTION="[databases]"
+
+# Parse comma-separated database list
+IFS=',' read -ra DBS <<< "$PGBOUNCER_DATABASES"
+for db in "${DBS[@]}"; do
+  db=$(echo "$db" | xargs)  # trim whitespace
+  DATABASES_SECTION="${DATABASES_SECTION}
+${db} = host=${PGBOUNCER_HOST} port=${PGBOUNCER_PORT} dbname=${db}"
+done
+
+# Generate complete pgbouncer.ini
+echo "$DATABASES_SECTION" > /opt/bitnami/pgbouncer/conf/pgbouncer.ini
+echo "" >> /opt/bitnami/pgbouncer/conf/pgbouncer.ini
+cat /opt/bitnami/pgbouncer/conf/pgbouncer.ini.template >> /opt/bitnami/pgbouncer/conf/pgbouncer.ini
+
+echo "✓ pgbouncer.ini generated successfully"
+
 echo "Generating pgBouncer userlist.txt with dynamic password hash..."
 
 # Generate MD5 hash for pgBouncer

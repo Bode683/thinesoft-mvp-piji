@@ -49,6 +49,13 @@ http:
           - crowdsec-bouncer
           - oauth2-auth
 
+    # Django CMS Dashboard Authentication (OAuth2 + CrowdSec)
+    djangocms-dashboard-auth:
+      chain:
+        middlewares:
+          - crowdsec-bouncer
+          - oauth2-auth
+
   routers:
     # Health check endpoint
     health:

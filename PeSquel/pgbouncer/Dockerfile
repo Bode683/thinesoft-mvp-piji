@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy configuration and entrypoint
-COPY pgbouncer.ini /opt/bitnami/pgbouncer/conf/pgbouncer.ini
+COPY pgbouncer.ini.template /opt/bitnami/pgbouncer/conf/pgbouncer.ini.template
 COPY entrypoint.sh /opt/bitnami/pgbouncer/custom-entrypoint.sh
 
 # Make sure the entrypoint script is executable and owned by user 1001
