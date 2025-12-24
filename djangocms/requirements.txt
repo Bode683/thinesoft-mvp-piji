@@ -41,9 +41,11 @@ pillow==11.2.1
 reportlab==4.4.1
 
 # Authentication
-django-allauth
-dj_rest_auth
 djangorestframework
+
+# Keycloak Authentication (2025 versions)
+drf-keycloak-auth==0.5.3          # DRF JWT authentication (actively maintained)
+python-keycloak==5.1            # Keycloak Admin API client (optional, for bulk user sync)
 
 # CORS
 django-cors-headers==3.13.0

@@ -26,6 +26,13 @@ else
   echo "⚠ Warning: django_superuser_password secret not found"
 fi
 
+if [ -f /run/secrets/djangocms_keycloak_client_secret ]; then
+  export KEYCLOAK_CLIENT_SECRET=$(cat /run/secrets/djangocms_keycloak_client_secret)
+  echo "✓ Keycloak client secret loaded from secret"
+else
+  echo "⚠ Warning: djangocms_keycloak_client_secret secret not found"
+fi
+
 
 if [ "$DATABASE" = "postgres" ]
 then

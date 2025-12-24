@@ -45,14 +45,17 @@ INSTALLED_APPS = [
     "backend",
     "rest_framework",
     "rest_framework.authtoken",  # <-- Add this
-    "dj_rest_auth",
-    "dj_rest_auth.registration",  # <-- Add this
-    "allauth",  # <-- Add this
-    "allauth.account",  # <-- Add this
-    "allauth.socialaccount",  # <-- Add this
+    # "dj_rest_auth",
+    # "dj_rest_auth.registration",  # <-- Add this
+    # "allauth",  # <-- Add this
+    # "allauth.account",  # <-- Add this
+    # "allauth.socialaccount",  # <-- Add this
     # optional, but used in most projects
     "djangocms_admin_style",
     "corsheaders",
+    # Keycloak Authentication
+    "drf_keycloak_auth",  # API JWT authentication
+    "api",  # Custom authentication middleware and backends
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -106,10 +109,12 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # OAuth2-Proxy header authentication (using Django's built-in RemoteUserMiddleware)
+    "api.middleware.OAuth2ProxyRemoteUserMiddleware",  # NEW - reads X-Auth-Request-* headers
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.locale.LocaleMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
+    # "allauth.account.middleware.AccountMiddleware",
     "cms.middleware.user.CurrentUserMiddleware",
     "cms.middleware.page.CurrentPageMiddleware",
     "cms.middleware.toolbar.ToolbarMiddleware",
@@ -190,14 +195,60 @@ DATABASES = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
-        # "rest_framework.authentication.SessionAuthentication",
-    ]
+        "drf_keycloak_auth.authentication.KeycloakAuthentication",  # Primary: JWT bearer tokens
+        "rest_framework.authentication.SessionAuthentication",  # Secondary: Session cookies
+        "rest_framework.authentication.TokenAuthentication",  # Fallback: DRF tokens
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
 }
 AUTHENTICATION_BACKENDS = (
+    "api.auth.KeycloakRemoteUserBackend",  # OAuth2-Proxy header auth for dashboard
     "django.contrib.auth.backends.ModelBackend",  # Django's default
-    "allauth.account.auth_backends.AuthenticationBackend",  # allauth's backend
+    # "allauth.account.auth_backends.AuthenticationBackend",  # allauth's backend
+    # Note: DRF JWT auth handled by drf-keycloak-auth in REST_FRAMEWORK settings
 )
+
+# Keycloak Configuration
+KEYCLOAK_SERVER_URL = os.environ.get("KEYCLOAK_SERVER_URL", "http://keycloak:8080")
+KEYCLOAK_REALM = os.environ.get("KEYCLOAK_REALM", "theddt")
+KEYCLOAK_CLIENT_ID = os.environ.get("KEYCLOAK_CLIENT_ID", "djangocms-client")
+KEYCLOAK_CLIENT_SECRET = os.environ.get("KEYCLOAK_CLIENT_SECRET", "")
+
+# drf-keycloak-auth Configuration (for API JWT authentication)
+KEYCLOAK_CONFIG = {
+    "KEYCLOAK_SERVER_URL": KEYCLOAK_SERVER_URL,
+    "KEYCLOAK_REALM": KEYCLOAK_REALM,
+    "KEYCLOAK_CLIENT_ID": KEYCLOAK_CLIENT_ID,
+    "KEYCLOAK_CLIENT_SECRET_KEY": KEYCLOAK_CLIENT_SECRET,
+    # Token validation settings
+    "KEYCLOAK_AUDIENCE": KEYCLOAK_CLIENT_ID,
+    "KEYCLOAK_ISSUER": f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}",
+    # Permission settings
+    "KEYCLOAK_REALM_ROLES_CLAIM": "realm_roles",
+    "KEYCLOAK_CLIENT_ROLES_CLAIM": f"resource_access.{KEYCLOAK_CLIENT_ID}.roles",
+    # User sync settings (from JWT claims)
+    "KEYCLOAK_SYNC_USERNAME_CLAIM": "preferred_username",
+    "KEYCLOAK_SYNC_EMAIL_CLAIM": "email",
+    "KEYCLOAK_SYNC_FIRST_NAME_CLAIM": "given_name",
+    "KEYCLOAK_SYNC_LAST_NAME_CLAIM": "family_name",
+    # Token verification (always enable in production)
+    "KEYCLOAK_VERIFY_SIGNATURE": True,
+    "KEYCLOAK_VERIFY_AUDIENCE": True,
+    "KEYCLOAK_VERIFY_EXPIRATION": True,
+}
+
+# OAuth2-Proxy Header Authentication Settings (for Dashboard)
+# These headers are forwarded by OAuth2-Proxy after successful Keycloak authentication
+OAUTH2_PROXY_HEADER_USERNAME = (
+    "X-Auth-Request-Preferred-Username"  # or X-Auth-Request-User
+)
+OAUTH2_PROXY_HEADER_EMAIL = "X-Auth-Request-Email"
+OAUTH2_PROXY_HEADER_GROUPS = "X-Auth-Request-Groups"
+
+# Security: Only trust headers from internal network (Traefik/OAuth2-Proxy)
+OAUTH2_PROXY_TRUSTED_PROXIES = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
 
 
 # Password validation
