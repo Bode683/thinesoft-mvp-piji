@@ -670,7 +670,7 @@
       "description": "Client for authenticating API requests from django",
       "rootUrl": "",
       "adminUrl": "",
-      "baseUrl": "",
+      "baseUrl": "http://api.theddt.local/admin/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
@@ -690,7 +690,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "publicClient": false,
-      "frontchannelLogout": true,
+      "frontchannelLogout": false,
       "protocol": "openid-connect",
       "attributes": {
         "realm_client": "false",
@@ -698,7 +698,10 @@
         "client.secret.creation.time": "1766403001",
         "backchannel.logout.session.required": "true",
         "standard.token.exchange.enabled": "false",
+        "login_theme": "keycloak.v2",
         "oauth2.device.authorization.grant.enabled": "false",
+        "display.on.consent.screen": "false",
+        "use.jwks.url": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
         "dpop.bound.access.tokens": "false"
       },
@@ -726,7 +729,7 @@
       "clientId": "oauth2-proxy-client",
       "name": "OAuth2 Proxy Client",
       "description": "Client for OAuth2-Proxy authentication",
-      "rootUrl": "http://auth.theddt.local",
+      "rootUrl": "http://api.theddt.local",
       "adminUrl": "",
       "baseUrl": "",
       "surrogateAuthRequired": false,
@@ -735,12 +738,12 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "**********",
       "redirectUris": [
-        "http://auth.theddt.local/*",
-        "http://auth.theddt.local/oauth2/callback",
+        "http://api.theddt.local/*",
+        "http://api.theddt.local/oauth2/callback",
         "http://localhost:4180/oauth2/callback"
       ],
       "webOrigins": [
-        "http://auth.theddt.local",
+        "http://api.theddt.local",
         "*"
       ],
       "notBefore": 0,
@@ -751,16 +754,18 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "publicClient": false,
-      "frontchannelLogout": true,
+      "frontchannelLogout": false,
       "protocol": "openid-connect",
       "attributes": {
         "realm_client": "false",
         "oidc.ciba.grant.enabled": "false",
         "backchannel.logout.session.required": "true",
-        "post.logout.redirect.uris": "http://auth.theddt.local/*",
+        "standard.token.exchange.enabled": "false",
+        "post.logout.redirect.uris": "http://api.theddt.local/*",
         "oauth2.device.authorization.grant.enabled": "false",
         "display.on.consent.screen": "false",
-        "backchannel.logout.revoke.offline.tokens": "false"
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "dpop.bound.access.tokens": "false"
       },
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
