@@ -38,6 +38,16 @@ SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT") != "False"
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
+# Login URLs - redirect to OAuth2-Proxy instead of Django login
+LOGIN_URL = '/oauth2/sign_in'
+LOGIN_REDIRECT_URL = '/admin/'
+LOGOUT_REDIRECT_URL = '/oauth2/sign_out'
+
+# Session Configuration
+SESSION_COOKIE_SAMESITE = 'Lax'  # Required for OAuth redirects
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # Set to True when using HTTPS
+
 
 # Application definition
 
