@@ -1,9 +1,17 @@
 # Add these entries to /etc/hosts for the Docker stacks
-127.0.0.1 pgadmin.theddt.local
-127.0.0.1 api.theddt.local
-127.0.0.1 pgaudit.theddt.local
-127.0.0.1 grafanastack.theddt.local
+
+# Core Services
+127.0.0.1 traefik.theddt.local
 127.0.0.1 keycloak.theddt.local
+127.0.0.1 api.theddt.local
+
+# Database Services
+127.0.0.1 pgadmin.theddt.local
+
+# OmniScope Monitoring Stack
+127.0.0.1 omniscope.theddt.local
+127.0.0.1 prometheus.theddt.local
+127.0.0.1 alertmanager.theddt.local
 
 # To add these entries, run:
 # sudo bash -c 'cat hosts-entries.txt >> /etc/hosts'

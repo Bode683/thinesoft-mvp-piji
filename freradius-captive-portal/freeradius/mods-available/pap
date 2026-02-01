@@ -1,5 +1,0 @@
-# Configuration minimale pour PAP
-pap {
-    encryption_scheme = auto
-    auto_header = yes
-}
