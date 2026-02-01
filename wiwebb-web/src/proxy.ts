@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import acceptLanguage from 'accept-language'
-import { fallbackLng, languages, cookieName, headerName } from './app/lib/i18n/settings'
+import { fallbackLng, languages, cookieName, headerName } from './app/[lng]/i18n/settings'
 
 acceptLanguage.languages([...languages])
 
@@ -9,30 +9,52 @@ export const config = {
   matcher: ['/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js|site.webmanifest).*)']
 }
 
-export function proxy(req: NextRequest) {
+/**
+ * Validates that a language code is supported
+ * @param lng - Language code to validate
+ * @returns The language code if valid, undefined otherwise
+ */
+function validateLanguage(lng: string | null | undefined): string | undefined {
+  if (!lng) return undefined
+  // Ensure the language is in our supported languages list
+  return (languages as readonly string[]).includes(lng) ? lng : undefined
+}
+
+export default function proxy(req: NextRequest) {
   // Ignore paths with "icon" or "chrome"
   if (req.nextUrl.pathname.indexOf('icon') > -1 || req.nextUrl.pathname.indexOf('chrome') > -1) {
     return NextResponse.next()
   }
 
   let lng: string | undefined
-  // Try to get language from cookie
-  if (req.cookies.has(cookieName)) {
-    lng = acceptLanguage.get(req.cookies.get(cookieName)?.value) ?? undefined
+
+  // Detection order matches client: path, cookie, header
+  // 1. Try to get language from URL path first (highest priority)
+  const lngInPath = languages.find((loc) => req.nextUrl.pathname.startsWith(`/${loc}`))
+  if (lngInPath) {
+    lng = lngInPath
   }
-  // If no cookie, check the Accept-Language header
+
+  // 2. Try to get language from cookie (validated)
+  if (!lng && req.cookies.has(cookieName)) {
+    const cookieValue = req.cookies.get(cookieName)?.value
+    lng = validateLanguage(cookieValue)
+  }
+
+  // 3. Check the Accept-Language header
   if (!lng) {
-    lng = acceptLanguage.get(req.headers.get('Accept-Language') ?? undefined) ?? undefined
+    const acceptLangHeader = req.headers.get('Accept-Language')
+    const parsedLang = acceptLanguage.get(acceptLangHeader ?? undefined) ?? undefined
+    lng = validateLanguage(parsedLang)
   }
-  // Default to fallback language if still undefined
+
+  // 4. Default to fallback language if still undefined
   if (!lng) {
     lng = fallbackLng
   }
 
-  // Check if the language is already in the path
-  const lngInPath = languages.find((loc) => req.nextUrl.pathname.startsWith(`/${loc}`))
   const headers = new Headers(req.headers)
-  headers.set(headerName, lngInPath || lng)
+  headers.set(headerName, lng)
 
   // If the language is not in the path, redirect to include it
   if (
@@ -49,8 +71,13 @@ export function proxy(req: NextRequest) {
     const refererUrl = new URL(req.headers.get('referer')!)
     const lngInReferer = languages.find((l) => refererUrl.pathname.startsWith(`/${l}`))
     const response = NextResponse.next({ headers })
-    if (lngInReferer) {
-      response.cookies.set(cookieName, lngInReferer)
+    // Only set cookie if the language is valid and supported
+    if (lngInReferer && validateLanguage(lngInReferer)) {
+      response.cookies.set(cookieName, lngInReferer, {
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+      })
     }
     return response
   }

@@ -1,5 +1,5 @@
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getT } from "@/app/lib/i18n";
+import { getT } from "@/app/[lng]/i18n";
 
 export default async function Home() {
   const { t } = await getT('common');

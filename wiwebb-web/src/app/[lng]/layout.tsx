@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "../globals.css";
-import { languages, type Language } from "../lib/i18n/settings";
+import { languages, type Language } from "./i18n/settings";
 
 export const metadata: Metadata = {
   title: "Create Next App",
