@@ -1,4 +1,6 @@
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ReduxTest } from "@/components/ReduxTest";
+import { LogoutButton } from "@/components/LogoutButton";
 import { getT } from "@/app/[lng]/i18n";
 
 export default async function Home() {
@@ -7,6 +9,7 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <ThemeToggle />
+      <ReduxTest />
 
       <main className="container mx-auto px-4 py-16">
         {/* Header */}
@@ -17,6 +20,9 @@ export default async function Home() {
           <p className="text-lg text-muted-foreground">
             {t('theme.description')}
           </p>
+          <div className="mt-6 flex justify-center">
+            <LogoutButton />
+          </div>
         </div>
 
         {/* Featured Cards with Light/Dark Support */}

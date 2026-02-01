@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "../globals.css";
 import { languages, type Language } from "./i18n/settings";
+import { Providers } from "@/components/providers/Providers";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -25,7 +26,7 @@ export default async function RootLayout({
   return (
     <html lang={lng}>
       <body className="antialiased">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
