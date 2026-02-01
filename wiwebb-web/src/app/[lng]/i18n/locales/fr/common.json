@@ -1,0 +1,39 @@
+{
+  "welcome": "Bienvenue",
+  "greeting": "Bonjour, {{name}}!",
+  "theme": {
+    "title": "Page de Test du Thème",
+    "description": "Test du système de thème Next.js + Tailwind v4 + shadcn",
+    "toggle": "Cliquez sur le bouton de basculement du thème dans le coin supérieur droit pour basculer entre les modes clair et sombre.",
+    "saved": "Votre préférence est enregistrée localement!"
+  },
+  "sections": {
+    "featuredCards": "Cartes en Vedette",
+    "colorPalette": "Palette de Couleurs",
+    "typography": "Typographie",
+    "buttons": "Boutons Interactifs",
+    "cards": "Cartes et Ombres",
+    "borderRadius": "Rayon de Bordure"
+  },
+  "cards": {
+    "premium": {
+      "title": "Carte Premium",
+      "description": "Cette carte s'adapte magnifiquement aux thèmes clair et sombre avec des transitions fluides.",
+      "primaryAction": "Action Principale",
+      "secondary": "Secondaire"
+    },
+    "gradient": {
+      "title": "Carte Dégradée",
+      "description": "Présentation de dégradés qui fonctionnent parfaitement en modes clair et sombre.",
+      "action": "Commencer"
+    }
+  },
+  "colors": {
+    "primary": "Couleur principale de la marque",
+    "secondary": "Couleur secondaire",
+    "accent": "Accents en surbrillance",
+    "muted": "Arrière-plans subtils",
+    "destructive": "États d'erreur/danger",
+    "card": "Conteneur de carte"
+  }
+}

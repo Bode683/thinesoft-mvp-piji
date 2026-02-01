@@ -1,0 +1,39 @@
+{
+  "welcome": "Welcome",
+  "greeting": "Hello, {{name}}!",
+  "theme": {
+    "title": "Theme Test Page",
+    "description": "Testing Next.js + Tailwind v4 + shadcn theme system",
+    "toggle": "Click the theme toggle button in the top-right corner to switch between light and dark modes.",
+    "saved": "Your preference is saved locally!"
+  },
+  "sections": {
+    "featuredCards": "Featured Cards",
+    "colorPalette": "Color Palette",
+    "typography": "Typography",
+    "buttons": "Interactive Buttons",
+    "cards": "Cards & Shadows",
+    "borderRadius": "Border Radius"
+  },
+  "cards": {
+    "premium": {
+      "title": "Premium Card",
+      "description": "This card adapts beautifully to both light and dark themes with smooth transitions.",
+      "primaryAction": "Primary Action",
+      "secondary": "Secondary"
+    },
+    "gradient": {
+      "title": "Gradient Card",
+      "description": "Showcasing gradients that work in both light and dark modes seamlessly.",
+      "action": "Get Started"
+    }
+  },
+  "colors": {
+    "primary": "Main brand color",
+    "secondary": "Secondary color",
+    "accent": "Accent highlights",
+    "muted": "Subtle backgrounds",
+    "destructive": "Error/danger states",
+    "card": "Card container"
+  }
+}
