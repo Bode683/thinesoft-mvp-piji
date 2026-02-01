@@ -184,6 +184,21 @@ PYSCRIPT
         print_warning "djangocms_keycloak_client_secret.txt already exists, skipping"
     fi
 
+    # OmniScope / Grafana secrets
+    if [ ! -f secrets/grafana_admin_password.txt ]; then
+        openssl rand -base64 32 > secrets/grafana_admin_password.txt
+        print_success "Generated grafana_admin_password.txt"
+    else
+        print_warning "grafana_admin_password.txt already exists, skipping"
+    fi
+
+    if [ ! -f secrets/grafana_oauth_client_secret.txt ]; then
+        openssl rand -base64 32 > secrets/grafana_oauth_client_secret.txt
+        print_success "Generated grafana_oauth_client_secret.txt"
+    else
+        print_warning "grafana_oauth_client_secret.txt already exists, skipping"
+    fi
+
     # Set permissions (644 allows container users to read secrets)
     chmod 644 secrets/*.txt
     print_success "Permissions set on secrets"
@@ -249,6 +264,7 @@ setup_keycloak_realm() {
     KEYCLOAK_PASSWORD=$(cat secrets/keycloak_admin_password.txt)
     OAUTH2_SECRET=$(cat secrets/oauth2_client_secret.txt)
     DJANGOCMS_SECRET=$(cat secrets/djangocms_keycloak_client_secret.txt)
+    GRAFANA_SECRET=$(cat secrets/grafana_oauth_client_secret.txt)
 
     # Get admin token
     TOKEN=$(docker exec pesequel-postgres bash -c "curl -s -X POST http://quewall-keycloak:8080/realms/master/protocol/openid-connect/token \
@@ -263,21 +279,29 @@ setup_keycloak_realm() {
         return 1
     fi
 
-    # Create theddt realm
-    docker exec pesequel-postgres bash -c "curl -s -X POST http://quewall-keycloak:8080/admin/realms \
-      -H 'Authorization: Bearer ${TOKEN}' \
-      -H 'Content-Type: application/json' \
-      -d '{
-        \"realm\": \"theddt\",
-        \"enabled\": true,
-        \"displayName\": \"TheDDT Realm\"
-      }'" > /dev/null 2>&1
-    print_success "Created theddt realm"
+    # Wait for theddt realm to be imported from realm-export.json
+    echo "Waiting for theddt realm to be imported..."
+    for i in {1..30}; do
+        REALM_EXISTS=$(docker exec pesequel-postgres curl -s http://quewall-keycloak:8080/realms/theddt 2>&1 | grep -c "theddt" || echo "0")
+        if [ "$REALM_EXISTS" -gt 0 ]; then
+            print_success "TheDDT realm imported successfully"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            print_error "TheDDT realm was not imported. Check realm-export.json"
+            return 1
+        fi
+        sleep 2
+    done
 
-    # Update client secrets for both oauth2-proxy-client and djangocms-client
-    # (Both clients are defined in realm-export.json but secrets are masked)
+    # Update client secrets for oauth2-proxy-client and djangocms-client
+    # (Clients are defined in realm-export.json but secrets are masked)
     update_client_secret "oauth2-proxy-client" "$OAUTH2_SECRET" "$TOKEN"
     update_client_secret "djangocms-client" "$DJANGOCMS_SECRET" "$TOKEN"
+
+    # Note: grafana-client must be created manually in Keycloak admin console
+    # After creating it, you can run: update_client_secret "grafana-client" "$GRAFANA_SECRET" "$TOKEN"
+    # Or re-export the realm with the client included
 }
 
 # Update client secret in Keycloak
@@ -295,7 +319,12 @@ update_client_secret() {
       grep -o "\"id\":\"[^\"]*\"" | cut -d'"' -f4)
 
     if [ -z "$CLIENT_UUID" ]; then
-        print_error "Failed to find client ${CLIENT_ID}"
+        print_error "Failed to find client ${CLIENT_ID} in realm theddt"
+        echo "Available clients:"
+        docker exec pesequel-postgres bash -c "curl -s -X GET \
+          http://quewall-keycloak:8080/admin/realms/theddt/clients \
+          -H 'Authorization: Bearer ${TOKEN}' \
+          -H 'Content-Type: application/json'" | grep -o "\"clientId\":\"[^\"]*\"" | cut -d'"' -f4
         return 1
     fi
 
@@ -324,6 +353,9 @@ show_dns_instructions() {
     echo "127.0.0.1 traefik.theddt.local"
     echo "127.0.0.1 keycloak.theddt.local"
     echo "127.0.0.1 auth.theddt.local"
+    echo "127.0.0.1 omniscope.theddt.local"
+    echo "127.0.0.1 prometheus.theddt.local"
+    echo "127.0.0.1 alertmanager.theddt.local"
     echo ""
     echo "Linux/Mac: sudo nano /etc/hosts"
     echo "Windows: C:\\Windows\\System32\\drivers\\etc\\hosts (Run as Administrator)"
@@ -361,15 +393,16 @@ wait_for_health() {
     sleep 10
 
     # Check each service (removed crowdsec-traefik-bouncer - we migrated to plugin)
-    services=("crowdsec" "traefik" "postgres" "pgbouncer" "pgadmin" "keycloak" "oauth2-proxy")
+    services=("crowdsec" "traefik" "postgres" "pgbouncer" "pgadmin" "keycloak" "oauth2-proxy" "grafana" "prometheus" "loki" "alertmanager")
 
     for service in "${services[@]}"; do
         echo "Checking $service..."
         for i in {1..30}; do
-            # Try koolflows-, pesequel-, or quewall- prefixes
+            # Try koolflows-, pesequel-, quewall-, or omniscope- prefixes
             health=$(docker inspect --format='{{.State.Health.Status}}' "koolflows-$service" 2>/dev/null || \
                      docker inspect --format='{{.State.Health.Status}}' "pesequel-$service" 2>/dev/null || \
                      docker inspect --format='{{.State.Health.Status}}' "quewall-$service" 2>/dev/null || \
+                     docker inspect --format='{{.State.Health.Status}}' "omniscope-$service" 2>/dev/null || \
                      echo "unknown")
             if [ "$health" = "healthy" ]; then
                 print_success "$service is healthy"
@@ -398,6 +431,11 @@ show_summary() {
     echo "  • PostgreSQL: localhost:5432"
     echo "  • pgBouncer: localhost:6432"
     echo ""
+    echo "OmniScope Monitoring Stack:"
+    echo "  • Grafana: http://omniscope.theddt.local (Keycloak SSO)"
+    echo "  • Prometheus: http://prometheus.theddt.local"
+    echo "  • AlertManager: http://alertmanager.theddt.local"
+    echo ""
     echo "Credentials:"
     echo "  • PostgreSQL User: $(cat secrets/postgres_user.txt)"
     echo "  • PostgreSQL Password: $(cat secrets/postgres_password.txt)"
@@ -405,6 +443,8 @@ show_summary() {
     echo "  • pgAdmin Password: $(cat secrets/pgadmin_password.txt)"
     echo "  • Keycloak Admin: admin"
     echo "  • Keycloak Password: $(cat secrets/keycloak_admin_password.txt)"
+    echo "  • Grafana Admin: admin"
+    echo "  • Grafana Password: $(cat secrets/grafana_admin_password.txt)"
     echo ""
     echo "Useful Commands:"
     echo "  • View logs: docker compose logs -f [service_name]"

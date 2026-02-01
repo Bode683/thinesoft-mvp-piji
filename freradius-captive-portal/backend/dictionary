@@ -1,6 +1,0 @@
-# Dictionary file for FreeRADIUS
-
-ATTRIBUTE User-Name 1 string
-ATTRIBUTE User-Password 2 string
-ATTRIBUTE NAS-Identifier 32 string
-ATTRIBUTE NAS-IP-Address 4 ipaddr

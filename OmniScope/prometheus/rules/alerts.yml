@@ -1,0 +1,187 @@
+groups:
+  - name: mvp-critical
+    rules:
+      # Service availability
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."
+
+      # PostgreSQL alerts
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL instance {{ $labels.instance }} is not responding."
+
+      - alert: PostgresHighConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL high connection count"
+          description: "PostgreSQL has {{ $value }} active connections."
+
+      - alert: PostgresTooManyDeadTuples
+        expr: pg_stat_user_tables_n_dead_tup > 10000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL table has too many dead tuples"
+          description: "Table {{ $labels.relname }} has {{ $value }} dead tuples. Consider running VACUUM."
+
+      # Container alerts
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total{name!=""}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is {{ printf \"%.2f\" $value }}%"
+
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container {{ $labels.name }} memory usage is {{ printf \"%.2f\" $value }}%"
+
+      - alert: ContainerRestarting
+        expr: increase(container_restart_count{name!=""}[15m]) > 3
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} is restarting frequently"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last 15 minutes."
+
+      # Host alerts
+      - alert: HostHighCPU
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host high CPU usage"
+          description: "Host CPU usage is {{ printf \"%.2f\" $value }}%"
+
+      - alert: HostHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host high memory usage"
+          description: "Host memory usage is {{ printf \"%.2f\" $value }}%"
+
+      - alert: HostDiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk space low"
+          description: "Host has only {{ printf \"%.2f\" $value }}% disk space remaining"
+
+      - alert: HostDiskSpaceCritical
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host disk space critically low"
+          description: "Host has only {{ printf \"%.2f\" $value }}% disk space remaining. Immediate action required!"
+
+  - name: mvp-services
+    rules:
+      # Traefik alerts
+      - alert: TraefikHighErrorRate
+        expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) / sum(rate(traefik_service_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Traefik high error rate"
+          description: "Traefik error rate is {{ printf \"%.2f\" $value }}%"
+
+      - alert: TraefikServiceDown
+        expr: traefik_service_server_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Traefik backend service is down"
+          description: "Traefik service {{ $labels.service }} backend is not responding."
+
+      # Keycloak alerts
+      - alert: KeycloakDown
+        expr: up{job="keycloak"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Keycloak is down"
+          description: "Keycloak authentication service is not responding."
+
+      # Grafana alerts
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana monitoring dashboard is not responding."
+
+      # Loki alerts
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Loki is down"
+          description: "Loki log aggregation service is not responding."
+
+      # AlertManager alerts
+      - alert: AlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AlertManager is down"
+          description: "AlertManager notification service is not responding."
+
+  - name: mvp-application
+    rules:
+      # Django CMS alerts
+      - alert: DjangoHighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Django high response time"
+          description: "Django 95th percentile response time is {{ printf \"%.2f\" $value }}s"
+
+      - alert: DjangoHighErrorRate
+        expr: sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m])) / sum(rate(django_http_responses_total_by_status_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Django high error rate"
+          description: "Django error rate is {{ printf \"%.2f\" $value }}%"

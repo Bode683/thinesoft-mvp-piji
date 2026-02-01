@@ -1,0 +1,54 @@
+global:
+  resolve_timeout: 5m
+  # SMTP configuration (uncomment and configure for email alerts)
+  # smtp_smarthost: 'localhost:587'
+  # smtp_from: 'alertmanager@theddt.local'
+  # smtp_auth_username: ''
+  # smtp_auth_password: ''
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default-receiver'
+  routes:
+    # Route critical alerts to critical-receiver
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      continue: true
+
+receivers:
+  - name: 'default-receiver'
+    # Webhook for MVP integration (Django endpoint)
+    # Uncomment when Django webhook endpoint is implemented
+    # webhook_configs:
+    #   - url: 'http://djangocms:8000/api/webhooks/alerts/'
+    #     send_resolved: true
+
+  - name: 'critical-receiver'
+    # Critical alerts webhook
+    # Uncomment when Django webhook endpoint is implemented
+    # webhook_configs:
+    #   - url: 'http://djangocms:8000/api/webhooks/alerts/critical/'
+    #     send_resolved: true
+
+    # Email notifications for critical alerts (uncomment when SMTP is configured)
+    # email_configs:
+    #   - to: 'admin@theddt.local'
+    #     subject: 'CRITICAL Alert: {{ .GroupLabels.alertname }}'
+    #     body: |
+    #       {{ range .Alerts }}
+    #       Alert: {{ .Annotations.summary }}
+    #       Description: {{ .Annotations.description }}
+    #       Severity: {{ .Labels.severity }}
+    #       {{ end }}
+
+inhibit_rules:
+  # Inhibit warning alerts when critical alert is firing for same alertname
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']

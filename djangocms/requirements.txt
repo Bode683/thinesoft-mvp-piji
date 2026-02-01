@@ -42,6 +42,7 @@ reportlab==4.4.1
 
 # Authentication
 djangorestframework
+drf-spectacular==0.29.0  # OpenAPI 3.0 schema generation
 
 # Keycloak Authentication (2025 versions)
 drf-keycloak-auth==0.5.3          # DRF JWT authentication (actively maintained)
