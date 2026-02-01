@@ -62,4 +62,13 @@ class OAuth2ProxyRemoteUserMiddleware(RemoteUserMiddleware):
                 return
 
         # Call parent RemoteUserMiddleware logic
-        return super().process_request(request)
+        response = super().process_request(request)
+
+        # CRITICAL FIX: Ensure session is saved after authentication
+        # RemoteUserMiddleware authenticates the user, but we need to ensure
+        # the session is persisted so Django doesn't redirect to login page
+        if request.user.is_authenticated and request.META.get(self.header):
+            # Mark session as modified to ensure it's saved
+            request.session.modified = True
+
+        return response

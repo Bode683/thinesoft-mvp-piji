@@ -278,20 +278,36 @@ services:
     restart: unless-stopped
     networks:
       - web
+    extra_hosts:
+      - "keycloak.theddt.local:host-gateway"  # Route through Docker host to Traefik
     environment:
       # OIDC Provider Configuration
+      # Use external issuer URL to match tokens issued by Keycloak
       OAUTH2_PROXY_PROVIDER: oidc
-      OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak:8080/realms/theddt
+      OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak.theddt.local/realms/theddt
       OAUTH2_PROXY_CLIENT_ID: oauth2-proxy-client
-      OAUTH2_PROXY_REDIRECT_URL: http://auth.theddt.local/oauth2/callback
+      OAUTH2_PROXY_REDIRECT_URL: http://api.theddt.local/oauth2/callback
       OAUTH2_PROXY_SCOPE: "openid profile email"
-      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "false"
-      OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION: "true"
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+      OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION: "false"
+      OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+
+      # Manual OIDC endpoints - use external URL for consistency
+      OAUTH2_PROXY_LOGIN_URL: http://keycloak.theddt.local/realms/theddt/protocol/openid-connect/auth
+      OAUTH2_PROXY_REDEEM_URL: http://keycloak.theddt.local/realms/theddt/protocol/openid-connect/token
+      OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak.theddt.local/realms/theddt/protocol/openid-connect/certs
+      OAUTH2_PROXY_PROFILE_URL: http://keycloak.theddt.local/realms/theddt/protocol/openid-connect/userinfo
+
+      # Whitelist Configuration
+      OAUTH2_PROXY_WHITELIST_DOMAINS: .theddt.local
 
       # Cookie Configuration
       OAUTH2_PROXY_COOKIE_DOMAINS: .theddt.local
       OAUTH2_PROXY_COOKIE_SECURE: "false"
       OAUTH2_PROXY_COOKIE_NAME: _oauth2_proxy
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_COOKIE_CSRF_PER_REQUEST: "false"
+      OAUTH2_PROXY_COOKIE_CSRF_EXPIRE: "15m"
 
       # Server Configuration
       OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
@@ -304,8 +320,8 @@ services:
       OAUTH2_PROXY_EMAIL_DOMAINS: "*"
       OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "false"
 
-      # Upstream (not used for ForwardAuth, but required)
-      OAUTH2_PROXY_UPSTREAMS: static://202
+      # Upstream - route authenticated requests to Django
+      OAUTH2_PROXY_UPSTREAMS: http://djangocms:8000
     secrets:
       - oauth2_client_secret
       - oauth2_cookie_secret
@@ -314,11 +330,17 @@ services:
         condition: service_healthy
       traefik:
         condition: service_started
+      djangocms:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.oauth2-proxy.rule=Host(`auth.theddt.local`)"
-      - "traefik.http.routers.oauth2-proxy.entrypoints=web"
-      - "traefik.http.routers.oauth2-proxy.middlewares=crowdsec-full@file"
+      # OAuth2 endpoints on api.theddt.local (priority 25 - between static and admin)
+      - "traefik.http.routers.oauth2-endpoints.rule=Host(`api.theddt.local`) && PathPrefix(`/oauth2/`)"
+      - "traefik.http.routers.oauth2-endpoints.entrypoints=web"
+      - "traefik.http.routers.oauth2-endpoints.middlewares=crowdsec-full@file"
+      - "traefik.http.routers.oauth2-endpoints.service=oauth2-proxy"
+      - "traefik.http.routers.oauth2-endpoints.priority=25"
+      # Service definition
       - "traefik.http.services.oauth2-proxy.loadbalancer.server.port=4180"
 
   ###########################################
@@ -402,25 +424,33 @@ services:
     labels:
       - "traefik.enable=true"
 
-      # API Routes (JWT only, no OAuth2-Proxy)
+      # API Routes (JWT only, no OAuth2-Proxy) - direct to Django
       - "traefik.http.routers.djangocms-api.rule=Host(`api.theddt.local`) && PathPrefix(`/api/`)"
       - "traefik.http.routers.djangocms-api.entrypoints=web"
       - "traefik.http.routers.djangocms-api.middlewares=crowdsec-full@file"
       - "traefik.http.routers.djangocms-api.service=djangocms"
+      - "traefik.http.routers.djangocms-api.priority=30"
 
-      # Admin Routes (with OAuth2-Proxy)
+      # Static files - direct to Django (no auth needed)
+      - "traefik.http.routers.djangocms-static.rule=Host(`api.theddt.local`) && PathPrefix(`/static/`)"
+      - "traefik.http.routers.djangocms-static.entrypoints=web"
+      - "traefik.http.routers.djangocms-static.middlewares=crowdsec-full@file"
+      - "traefik.http.routers.djangocms-static.service=djangocms"
+      - "traefik.http.routers.djangocms-static.priority=30"
+
+      # Admin Routes - route through oauth2-proxy
       - "traefik.http.routers.djangocms-admin.rule=Host(`api.theddt.local`) && PathPrefix(`/admin/`)"
       - "traefik.http.routers.djangocms-admin.entrypoints=web"
-      - "traefik.http.routers.djangocms-admin.middlewares=djangocms-dashboard-auth@file"
-      - "traefik.http.routers.djangocms-admin.service=djangocms"
+      - "traefik.http.routers.djangocms-admin.middlewares=crowdsec-full@file"
+      - "traefik.http.routers.djangocms-admin.service=oauth2-proxy"
       - "traefik.http.routers.djangocms-admin.priority=20"
 
-      # CMS Routes (with OAuth2-Proxy) - catch-all for everything except /api/ and /admin/
+      # CMS Routes - route through oauth2-proxy (catch-all for protected content)
       - "traefik.http.routers.djangocms-cms.rule=Host(`api.theddt.local`)"
       - "traefik.http.routers.djangocms-cms.entrypoints=web"
-      - "traefik.http.routers.djangocms-cms.middlewares=djangocms-dashboard-auth@file"
-      - "traefik.http.routers.djangocms-cms.service=djangocms"
+      - "traefik.http.routers.djangocms-cms.middlewares=crowdsec-full@file"
+      - "traefik.http.routers.djangocms-cms.service=oauth2-proxy"
       - "traefik.http.routers.djangocms-cms.priority=10"
 
-      # Service definition (shared by all routers)
+      # Service definition (direct Django access)
       - "traefik.http.services.djangocms.loadbalancer.server.port=8000"
