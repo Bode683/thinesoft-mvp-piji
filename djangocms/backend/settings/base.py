@@ -1,6 +1,7 @@
 """
 Django base settings - shared across all environments.
 """
+
 from pathlib import Path
 import os
 import stripe
@@ -31,8 +32,35 @@ ALLOWED_HOSTS = [
     "api.theddt.local",  # Traefik routing hostname
 ]
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://api.theddt.local"]
+# Temporarily allow all origins for testing
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://api.theddt.local",
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 CSRF_TRUSTED_ORIGINS = ["http://localhost:5173", "http://api.theddt.local"]
 
 # Redirect to HTTPS by default, unless explicitly disabled
@@ -41,9 +69,9 @@ SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT") != "False"
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
 # Login URLs - standard Django admin login
-LOGIN_URL = '/admin/login/'
-LOGIN_REDIRECT_URL = '/admin/'
-LOGOUT_REDIRECT_URL = '/admin/'
+LOGIN_URL = "/admin/login/"
+LOGIN_REDIRECT_URL = "/admin/"
+LOGOUT_REDIRECT_URL = "/admin/"
 
 # Session Configuration
 SESSION_COOKIE_HTTPONLY = True
@@ -250,7 +278,6 @@ Platform admins can access cross-tenant data via `/api/v1/platform/*` endpoints.
 """,
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-
     # JWT auth (Keycloak)
     "APPEND_COMPONENTS": {
         "securitySchemes": {
@@ -267,7 +294,7 @@ Platform admins can access cross-tenant data via `/api/v1/platform/*` endpoints.
                     "4. Enter: `Bearer <access_token>`\n\n"
                     "**Token structure:**\n"
                     "```json\n"
-                    '{\n'
+                    "{\n"
                     '  "sub": "550e8400-e29b-41d4-a716-446655440000",\n'
                     '  "preferred_username": "john@example.com",\n'
                     '  "email": "john@example.com",\n'
@@ -279,20 +306,26 @@ Platform admins can access cross-tenant data via `/api/v1/platform/*` endpoints.
         }
     },
     "SECURITY": [{"bearerAuth": []}],
-
     # Organization
     "TAGS": [
-        {"name": "Authentication", "description": "User authentication and profile endpoints"},
+        {
+            "name": "Authentication",
+            "description": "User authentication and profile endpoints",
+        },
         {"name": "Tenants", "description": "Multi-tenant organization management"},
         {"name": "Members", "description": "Tenant membership management"},
-        {"name": "Subscribers", "description": "Subscriber lifecycle and subscription management"},
-        {"name": "Platform", "description": "Platform administration (cross-tenant, requires platform_admin)"},
+        {
+            "name": "Subscribers",
+            "description": "Subscriber lifecycle and subscription management",
+        },
+        {
+            "name": "Platform",
+            "description": "Platform administration (cross-tenant, requires platform_admin)",
+        },
     ],
-
     # Component organization
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": "/api/v1",
-
     # Misc
     "DISABLE_ERRORS_AND_WARNINGS": False,
 }
@@ -316,8 +349,12 @@ KEYCLOAK_CONFIG = {
     "KEYCLOAK_CLIENT_ID": KEYCLOAK_CLIENT_ID,
     "KEYCLOAK_CLIENT_SECRET_KEY": KEYCLOAK_CLIENT_SECRET,
     # Token validation settings
-    "KEYCLOAK_AUDIENCE": KEYCLOAK_CLIENT_ID,
+    # Accept tokens from frontend client (wiwebb-web-client) as well as backend client
+    "KEYCLOAK_AUDIENCE": None,  # Disable strict audience checking to accept both clients
     "KEYCLOAK_ISSUER": f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}",
+    # Disable token introspection - use JWT signature verification only
+    # This allows accepting tokens from wiwebb-web-client without introspecting with djangocms-client
+    "KEYCLOAK_BEARER_AUTHENTICATION_EXEMPT": True,
     # Permission settings
     "KEYCLOAK_REALM_ROLES_CLAIM": "realm_roles",
     "KEYCLOAK_CLIENT_ROLES_CLAIM": f"resource_access.{KEYCLOAK_CLIENT_ID}.roles",
@@ -326,10 +363,10 @@ KEYCLOAK_CONFIG = {
     "KEYCLOAK_SYNC_EMAIL_CLAIM": "email",
     "KEYCLOAK_SYNC_FIRST_NAME_CLAIM": "given_name",
     "KEYCLOAK_SYNC_LAST_NAME_CLAIM": "family_name",
-    # Token verification (always enable in production)
-    "KEYCLOAK_VERIFY_SIGNATURE": True,
-    "KEYCLOAK_VERIFY_AUDIENCE": True,
-    "KEYCLOAK_VERIFY_EXPIRATION": True,
+    # Token verification (JWT-based, no introspection)
+    "KEYCLOAK_VERIFY_SIGNATURE": True,  # Verify JWT signature (CRITICAL for security)
+    "KEYCLOAK_VERIFY_AUDIENCE": False,  # Disable audience check to accept frontend tokens
+    "KEYCLOAK_VERIFY_EXPIRATION": True,  # Verify token hasn't expired
 }
 
 # JWKS Caching
@@ -340,7 +377,7 @@ CACHES = {
     "jwks": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "TIMEOUT": 300,
-    }
+    },
 }
 
 

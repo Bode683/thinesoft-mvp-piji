@@ -14,6 +14,14 @@ export function useAuthBootstrap() {
 
     dispatch(authLoading())
 
+    // Check if Keycloak is already initialized (handles React Strict Mode double-mount)
+    if (keycloak.authenticated !== undefined) {
+      // Already initialized
+      dispatch(authReady(!!keycloak.authenticated))
+      setReady(true)
+      return
+    }
+
     keycloak
       .init({
         onLoad: 'login-required',
@@ -26,7 +34,8 @@ export function useAuthBootstrap() {
           setReady(true)
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Keycloak initialization error:', error)
         if (!cancelled) {
           dispatch(authError())
         }

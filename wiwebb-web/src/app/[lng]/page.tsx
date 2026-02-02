@@ -1,6 +1,7 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ReduxTest } from "@/components/ReduxTest";
 import { LogoutButton } from "@/components/LogoutButton";
+import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { getT } from "@/app/[lng]/i18n";
 
 export default async function Home() {
@@ -10,6 +11,7 @@ export default async function Home() {
     <div className="min-h-screen bg-background text-foreground">
       <ThemeToggle />
       <ReduxTest />
+      <DarkModeToggle />
 
       <main className="container mx-auto px-4 py-16">
         {/* Header */}

@@ -1,9 +1,22 @@
 "use client"
 
 import { keycloak } from '@/lib/keycloak/keycloak'
+import { useAppDispatch } from '@/lib/store/hooks'
+import { clearUser, authReset } from '@/features/auth/slice/authSlice'
+import { baseApi } from '@/services/api/baseApi'
 
 export function LogoutButton() {
+  const dispatch = useAppDispatch()
+
   const handleLogout = () => {
+    // Clear Redux state
+    dispatch(clearUser())
+    dispatch(authReset())
+
+    // Clear RTK Query cache
+    dispatch(baseApi.util.resetApiState())
+
+    // Logout from Keycloak
     keycloak.logout({
       redirectUri: window.location.origin,
     })
