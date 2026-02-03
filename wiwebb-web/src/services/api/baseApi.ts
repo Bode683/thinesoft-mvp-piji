@@ -5,6 +5,7 @@ export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_URL,
+    credentials: 'include', // Required for CORS with Access-Control-Allow-Credentials
     prepareHeaders: async (headers) => {
       try {
         // Only attempt token refresh if Keycloak is authenticated

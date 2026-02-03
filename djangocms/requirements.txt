@@ -45,7 +45,9 @@ djangorestframework
 drf-spectacular==0.29.0  # OpenAPI 3.0 schema generation
 
 # Keycloak Authentication (2025 versions)
-drf-keycloak-auth==0.5.3          # DRF JWT authentication (actively maintained)
+requests
+PyJWT 
+cryptography 
 python-keycloak==5.1            # Keycloak Admin API client (optional, for bulk user sync)
 
 # CORS

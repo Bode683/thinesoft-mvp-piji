@@ -2,10 +2,13 @@
 
 import { useAuthBootstrap } from '../hooks/useAuthBootstrap'
 import { useAppSelector } from '@/lib/store/hooks'
+import { KeycloakContext } from '@/lib/keycloak/KeycloakContext'
+import { getKeycloak } from '@/lib/keycloak/keycloak'
 
 export function AuthBootstrap({ children }: { children: React.ReactNode }) {
   const { ready } = useAuthBootstrap()
   const status = useAppSelector((state) => state.auth.status)
+  const keycloak = typeof window !== 'undefined' ? getKeycloak() : null
 
   if (status === 'error') {
     return (
@@ -29,14 +32,20 @@ export function AuthBootstrap({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <div className="text-sm text-muted-foreground">Loading...</div>
+      <KeycloakContext.Provider value={{ keycloak: null, initialized: false }}>
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <div className="text-sm text-muted-foreground">Loading...</div>
+          </div>
         </div>
-      </div>
+      </KeycloakContext.Provider>
     )
   }
 
-  return <>{children}</>
+  return (
+    <KeycloakContext.Provider value={{ keycloak, initialized: ready }}>
+      {children}
+    </KeycloakContext.Provider>
+  )
 }

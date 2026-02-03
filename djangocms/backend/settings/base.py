@@ -91,8 +91,6 @@ INSTALLED_APPS = [
     # optional, but used in most projects
     "djangocms_admin_style",
     "corsheaders",
-    # Keycloak Authentication
-    "drf_keycloak_auth",  # API JWT authentication
     # Domain-driven apps
     "apps.common",
     "apps.identity",
@@ -339,35 +337,35 @@ AUTHENTICATION_BACKENDS = (
 # Keycloak Configuration
 KEYCLOAK_SERVER_URL = os.environ.get("KEYCLOAK_SERVER_URL", "http://keycloak:8080")
 KEYCLOAK_REALM = os.environ.get("KEYCLOAK_REALM", "theddt")
+
+# Backend client (for admin operations via python-keycloak)
 KEYCLOAK_CLIENT_ID = os.environ.get("KEYCLOAK_CLIENT_ID", "djangocms-client")
 KEYCLOAK_CLIENT_SECRET = os.environ.get("KEYCLOAK_CLIENT_SECRET", "")
 
-# drf-keycloak-auth Configuration (for API JWT authentication)
-KEYCLOAK_CONFIG = {
-    "KEYCLOAK_SERVER_URL": KEYCLOAK_SERVER_URL,
-    "KEYCLOAK_REALM": KEYCLOAK_REALM,
-    "KEYCLOAK_CLIENT_ID": KEYCLOAK_CLIENT_ID,
-    "KEYCLOAK_CLIENT_SECRET_KEY": KEYCLOAK_CLIENT_SECRET,
-    # Token validation settings
-    # Accept tokens from frontend client (wiwebb-web-client) as well as backend client
-    "KEYCLOAK_AUDIENCE": None,  # Disable strict audience checking to accept both clients
-    "KEYCLOAK_ISSUER": f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}",
-    # Disable token introspection - use JWT signature verification only
-    # This allows accepting tokens from wiwebb-web-client without introspecting with djangocms-client
-    "KEYCLOAK_BEARER_AUTHENTICATION_EXEMPT": True,
-    # Permission settings
-    "KEYCLOAK_REALM_ROLES_CLAIM": "realm_roles",
-    "KEYCLOAK_CLIENT_ROLES_CLAIM": f"resource_access.{KEYCLOAK_CLIENT_ID}.roles",
-    # User sync settings (from JWT claims)
-    "KEYCLOAK_SYNC_USERNAME_CLAIM": "preferred_username",
-    "KEYCLOAK_SYNC_EMAIL_CLAIM": "email",
-    "KEYCLOAK_SYNC_FIRST_NAME_CLAIM": "given_name",
-    "KEYCLOAK_SYNC_LAST_NAME_CLAIM": "family_name",
-    # Token verification (JWT-based, no introspection)
-    "KEYCLOAK_VERIFY_SIGNATURE": True,  # Verify JWT signature (CRITICAL for security)
-    "KEYCLOAK_VERIFY_AUDIENCE": False,  # Disable audience check to accept frontend tokens
-    "KEYCLOAK_VERIFY_EXPIRATION": True,  # Verify token hasn't expired
-}
+# Frontend client (for JWT validation)
+# NOTE: Keycloak sets aud="account" for public clients, not the client_id
+KEYCLOAK_FRONTEND_CLIENT_ID = os.environ.get(
+    "KEYCLOAK_FRONTEND_CLIENT_ID",
+    "account"  # Default audience for public clients in Keycloak
+)
+
+# JWT Signature Validation Settings
+# JWKS URL uses internal Docker network for fetching public keys
+KEYCLOAK_JWKS_URL = (
+    f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}"
+    "/protocol/openid-connect/certs"
+)
+# Issuer must match the public URL in JWT tokens (not internal Docker URL)
+KEYCLOAK_ISSUER = os.environ.get(
+    "KEYCLOAK_ISSUER",
+    f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}"  # Fallback for backward compatibility
+)
+
+# JWT Verification Options
+KEYCLOAK_VERIFY_SIGNATURE = True   # CRITICAL: Always verify JWT signature
+KEYCLOAK_VERIFY_AUDIENCE = True    # Verify token audience matches frontend client
+KEYCLOAK_VERIFY_EXPIRATION = True  # Verify token hasn't expired
+KEYCLOAK_VERIFY_ISSUER = True      # Verify token issuer matches realm
 
 # JWKS Caching
 CACHES = {

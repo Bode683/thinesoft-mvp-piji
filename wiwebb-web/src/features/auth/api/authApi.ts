@@ -5,7 +5,7 @@ import { setUser, clearUser } from '../slice/authSlice'
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getMe: builder.query<AuthMe, void>({
-      query: () => '/auth/me',
+      query: () => '/auth/me/',
       providesTags: ['User'],
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
